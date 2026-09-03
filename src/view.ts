@@ -148,7 +148,7 @@ export class TabCleanerView extends ItemView {
       this.applySearchQuery(input.value);
     });
     input.addEventListener("input", (event) => {
-      if (composing || (event as InputEvent).isComposing) return;
+      if (composing || (event instanceof InputEvent && event.isComposing)) return;
       this.applySearchQuery(input.value);
     });
 
@@ -322,7 +322,9 @@ export class TabCleanerView extends ItemView {
     activeFilterId: string,
     priorityIds: string[],
   ): void {
-    requestAnimationFrame(() => {
+    const requestFrame = filters.ownerDocument.defaultView?.requestAnimationFrame;
+    if (!requestFrame) return;
+    requestFrame.call(filters.ownerDocument.defaultView, () => {
       if (!filters.isConnected) return;
       const gap = Number.parseFloat(getComputedStyle(filters).columnGap) || 0;
       const allWidth = allButton.offsetWidth;

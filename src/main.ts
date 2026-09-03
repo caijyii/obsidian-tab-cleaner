@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, type ViewState, type WorkspaceLeaf } from "obsidian";
+import { Notice, Plugin, TFile, type WorkspaceLeaf } from "obsidian";
 import { toClosedRecords } from "./closed-records";
 import { getLocale, strings } from "./i18n";
 import { retainedHistory } from "./history-retention";
@@ -52,10 +52,9 @@ export default class TabCleanerPlugin extends Plugin {
     });
   }
 
-  async onunload(): Promise<void> {
+  onunload(): void {
     this.historyTrackingReady = false;
     this.ignoredHistoryLeaves.clear();
-    this.app.workspace.detachLeavesOfType(TAB_CLEANER_VIEW);
   }
 
   async activateView(): Promise<void> {
@@ -121,7 +120,7 @@ export default class TabCleanerPlugin extends Plugin {
         return null;
       }
     }
-    const viewState = structuredClone(record.viewState) as ViewState;
+    const viewState = structuredClone(record.viewState);
     viewState.active = false;
     const leaf = this.app.workspace.getLeaf(true);
     await leaf.setViewState(viewState);

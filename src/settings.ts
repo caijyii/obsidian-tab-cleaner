@@ -46,7 +46,6 @@ export class TabCleanerSettingTab extends PluginSettingTab {
       .addSlider((slider) =>
         slider
           .setLimits(5, 50, 5)
-          .setDynamicTooltip()
           .setValue(this.plugin.settings.recentBatchLimit)
           .onChange(async (value) => {
             this.plugin.settings.recentBatchLimit = value;
