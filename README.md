@@ -31,7 +31,7 @@ Back up important work and test the workflows you rely on before introducing any
 
 ### Community Plugins
 
-Once Tab Cleaner is listed in the Obsidian Community Plugins directory:
+Tab Cleaner is available in the Obsidian Community Plugins directory:
 
 1. Open **Settings → Community plugins** in Obsidian.
 2. Choose **Browse** and search for **Tab Cleaner**.
@@ -39,7 +39,7 @@ Once Tab Cleaner is listed in the Obsidian Community Plugins directory:
 
 ### BRAT
 
-Before the Community Plugins listing is available, you can install GitHub releases with [BRAT](https://github.com/TfTHacker/obsidian42-brat):
+To test a GitHub release directly, install it with [BRAT](https://github.com/TfTHacker/obsidian42-brat):
 
 1. Install and enable BRAT.
 2. Choose **Add Beta plugin** in the BRAT settings.
@@ -89,7 +89,7 @@ Please report bugs and feature requests in [GitHub Issues](https://github.com/ca
 
 ## Acknowledgements
 
-The product concept was inspired by [Tab Out](https://github.com/zarazhangrui/tab-out). Tab Cleaner is an original implementation designed specifically for Obsidian and does not reuse Tab Out code or assets.
+The product concept was inspired by [Tab Out](https://github.com/zarazhangrui/tab-out).
 
 ## License
 

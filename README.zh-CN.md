@@ -31,7 +31,7 @@ Tab Cleaner 是一款 Obsidian 可视化标签页清理插件，帮助你查看�
 
 ### 通过第三方插件目录安装
 
-Tab Cleaner 进入 Obsidian 第三方插件目录后：
+Tab Cleaner 已进入 Obsidian 第三方插件目录：
 
 1. 在 Obsidian 中打开“设置 → 第三方插件”。
 2. 点击“浏览”并搜索 **Tab Cleaner**。
@@ -39,7 +39,7 @@ Tab Cleaner 进入 Obsidian 第三方插件目录后：
 
 ### 通过 BRAT 安装
 
-在第三方插件目录上架前，可以通过 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 安装 GitHub Release：
+如需直接测试 GitHub Release，可以通过 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 安装：
 
 1. 安装并启用 BRAT。
 2. 在 BRAT 设置中选择 **Add Beta plugin**。
@@ -89,7 +89,7 @@ Tab Cleaner 进入 Obsidian 第三方插件目录后：
 
 ## 致谢
 
-产品概念受到 [Tab Out](https://github.com/zarazhangrui/tab-out) 启发。Tab Cleaner 是针对 Obsidian 独立实现的，没有复用 Tab Out 的代码或素材。
+产品概念受到 [Tab Out](https://github.com/zarazhangrui/tab-out) 启发。
 
 ## 许可证
 

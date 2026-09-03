@@ -173,10 +173,7 @@ export class TabCleanerView extends ItemView {
       new StrategyModal(this.plugin, {
         query: this.query,
         onChanged: (strategyId) => {
-          this.filter = strategyId ?? "all";
-          this.query = "";
-          this.selected.clear();
-          this.render();
+          this.activateFilter(strategyId ?? "all");
         },
       }).open();
     });
