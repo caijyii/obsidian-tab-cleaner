@@ -1,0 +1,9 @@
+{
+  "id": "tab-cleaner",
+  "name": "Tab Cleaner",
+  "version": "1.0.0",
+  "minAppVersion": "1.8.7",
+  "description": "Visually find, review, and safely close groups of Obsidian tabs.",
+  "author": "caijyii",
+  "isDesktopOnly": false
+}
