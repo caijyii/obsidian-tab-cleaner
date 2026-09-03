@@ -59,7 +59,7 @@ Restart Obsidian or reload plugins, then enable **Tab Cleaner** under Settings â
 
 ## Usage
 
-Open the ribbon brush icon or run **Tab Cleaner: Open visual tab cleaner** from the command palette.
+Open the ribbon brush icon or run **Tab Cleaner: Open panel** from the command palette.
 
 1. Choose All, Empty, Duplicates, a saved search group, or enter a search.
 2. Choose whether pinned tabs can be selected, then select visible tabs or adjust them individually.

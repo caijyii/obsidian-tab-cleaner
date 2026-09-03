@@ -11,7 +11,7 @@ export function strings(locale: Locale) {
     ? {
         pluginName: "标签页清理器",
         openPlugin: "打开标签页清理器",
-        openCommand: "打开可视化标签页清理器",
+        openCommand: "打开面板",
         summary: (open: number, shown: number, selected: number) =>
           `${open} 个已打开 · 显示 ${shown} 个 · 已选择 ${selected} 个`,
         searchPlaceholder: "搜索路径、文件名、扩展名或视图类型",
@@ -89,7 +89,7 @@ export function strings(locale: Locale) {
     : {
         pluginName: "Tab Cleaner",
         openPlugin: "Open Tab Cleaner",
-        openCommand: "Open visual tab cleaner",
+        openCommand: "Open panel",
         summary: (open: number, shown: number, selected: number) =>
           `${open} open · ${shown} shown · ${selected} selected`,
         searchPlaceholder: "Search path, name, extension, or view type",

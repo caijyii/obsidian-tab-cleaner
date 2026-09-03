@@ -38,7 +38,7 @@ export default class TabCleanerPlugin extends Plugin {
     this.registerView(TAB_CLEANER_VIEW, (leaf) => new TabCleanerView(leaf, this));
     this.addRibbonIcon("brush-cleaning", text.openPlugin, () => void this.activateView());
     this.addCommand({
-      id: "open-tab-cleaner",
+      id: "open-panel",
       name: text.openCommand,
       callback: () => void this.activateView(),
     });

@@ -59,7 +59,7 @@ Tab Cleaner 进入 Obsidian 第三方插件目录后：
 
 ## 使用方法
 
-点击 Obsidian 左侧功能区中的清理刷图标，或者在命令面板中运行 **Tab Cleaner: Open visual tab cleaner**。
+点击 Obsidian 左侧功能区中的清理刷图标，或者在命令面板中运行 **Tab Cleaner: 打开面板**。
 
 1. 选择“全部”“空白”“重复”、已保存的检索组，或者直接输入搜索内容。
 2. 决定是否允许选择固定标签页，然后选择当前可见项或逐项勾选。
