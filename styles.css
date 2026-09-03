@@ -280,6 +280,14 @@
   color: var(--text-muted);
 }
 
+.tab-cleaner__current {
+  width: 0.4rem;
+  height: 0.4rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+}
+
 .tab-cleaner__type {
   flex: 0 0 auto;
   width: 2.55rem;

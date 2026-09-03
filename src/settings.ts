@@ -13,7 +13,8 @@ export class TabCleanerSettingTab extends PluginSettingTab {
     const text = strings(getLocale());
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: text.pluginName });
+
+    new Setting(containerEl).setName(text.tabProtectionSection).setHeading();
 
     new Setting(containerEl)
       .setName(text.pinnedProtection)
@@ -37,6 +38,8 @@ export class TabCleanerSettingTab extends PluginSettingTab {
         }),
       );
 
+    new Setting(containerEl).setName(text.recentlyClosed).setHeading();
+
     new Setting(containerEl)
       .setName(text.recentBatchLimit)
       .setDesc(text.recentBatchLimitDesc)
@@ -47,23 +50,9 @@ export class TabCleanerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.recentBatchLimit)
           .onChange(async (value) => {
             this.plugin.settings.recentBatchLimit = value;
-            await this.plugin.trimAndSaveHistory();
+            await this.plugin.saveSettings();
           }),
       );
-
-    containerEl.createEl("h3", { text: text.savedStrategies });
-    containerEl.createEl("p", {
-      text: text.savedStrategiesDesc,
-      cls: "setting-item-description",
-    });
-
-    if (this.plugin.settings.strategies.length === 0) {
-      containerEl.createEl("p", { text: text.noStrategies, cls: "setting-item-description" });
-    }
-
-    for (const strategy of this.plugin.settings.strategies) {
-      this.renderStrategy(containerEl, strategy);
-    }
 
     new Setting(containerEl)
       .setName(text.clearRecentlyClosed)
@@ -73,6 +62,19 @@ export class TabCleanerSettingTab extends PluginSettingTab {
           await this.plugin.clearHistory();
         }),
       );
+
+    new Setting(containerEl)
+      .setName(text.savedStrategies)
+      .setDesc(text.savedStrategiesDesc)
+      .setHeading();
+
+    if (this.plugin.settings.strategies.length === 0) {
+      new Setting(containerEl).setDesc(text.noStrategies);
+    }
+
+    for (const strategy of this.plugin.settings.strategies) {
+      this.renderStrategy(containerEl, strategy);
+    }
   }
 
   private renderStrategy(containerEl: HTMLElement, strategy: CleanerStrategy): void {

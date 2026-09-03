@@ -10,6 +10,7 @@ import {
   type WorkspaceLeaf,
 } from "obsidian";
 import { getLocale, strings } from "./i18n";
+import { visibleHistory } from "./history-retention";
 import type TabCleanerPlugin from "./main";
 import {
   defaultSelected,
@@ -62,6 +63,7 @@ export class TabCleanerView extends ItemView {
         this.render();
       }),
     );
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.render()));
     this.render();
   }
 
@@ -91,7 +93,11 @@ export class TabCleanerView extends ItemView {
     this.schedulePendingWebviewerRefresh(tabs);
     const filtered = this.filteredTabs(tabs);
     this.selected = new Set(
-      [...this.selected].filter((id) => filtered.some((tab) => tab.id === id)),
+      [...this.selected].filter((id) =>
+        filtered.some(
+          (tab) => tab.id === id && !tabProtectionReason(tab, this.plugin.settings),
+        ),
+      ),
     );
 
     this.renderHeader(root);
@@ -491,7 +497,15 @@ export class TabCleanerView extends ItemView {
     const row = list.createDiv({
       cls: reason ? "tab-cleaner__row is-disabled is-openable" : "tab-cleaner__row is-openable",
     });
-    if (reason) row.setAttribute("title", reason === "pinned" ? text.pinned : text.cannotRestore);
+    if (reason) {
+      const reasonText =
+        reason === "pinned"
+          ? text.pinned
+          : reason === "active"
+            ? text.activeProtected
+            : text.cannotRestore;
+      row.setAttribute("title", reasonText);
+    }
 
     const checkbox = row.createEl("input", { type: "checkbox" });
     checkbox.checked = this.selected.has(tab.id);
@@ -517,6 +531,13 @@ export class TabCleanerView extends ItemView {
     const title = info.createDiv({ cls: "tab-cleaner__row-title" });
     this.addTypeBadge(title, tab.extension || (tab.viewType === "webviewer" ? "web" : ""));
     title.createSpan({ text: tab.title, cls: "tab-cleaner__row-name" });
+    if (tab.isActive && this.plugin.settings.protectActiveTab) {
+      const current = title.createSpan({
+        cls: "tab-cleaner__current",
+        attr: { "aria-label": text.activeProtected },
+      });
+      setTooltip(current, text.activeProtected);
+    }
     if (tab.isPinned) {
       const pin = title.createSpan({ cls: "tab-cleaner__pin", attr: { "aria-label": text.pinned } });
       setIcon(pin, "pin");
@@ -542,7 +563,10 @@ export class TabCleanerView extends ItemView {
       return;
     }
 
-    for (const batch of this.plugin.recentBatches) {
+    for (const batch of visibleHistory(
+      this.plugin.recentBatches,
+      this.plugin.settings.recentBatchLimit,
+    )) {
       const details = section.createEl("details", { cls: "tab-cleaner__batch" });
       const summary = details.createEl("summary");
       const chevron = summary.createSpan({ cls: "tab-cleaner__batch-chevron" });

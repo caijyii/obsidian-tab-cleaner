@@ -1,7 +1,8 @@
 import { Notice, Plugin, TFile, type ViewState, type WorkspaceLeaf } from "obsidian";
 import { toClosedRecords } from "./closed-records";
 import { getLocale, strings } from "./i18n";
-import { scanTabs } from "./model";
+import { retainedHistory } from "./history-retention";
+import { scanTabs, tabProtectionReason } from "./model";
 import { stateString } from "./tab-state";
 import { TabCleanerSettingTab } from "./settings";
 import type {
@@ -60,18 +61,24 @@ export default class TabCleanerPlugin extends Plugin {
   async activateView(): Promise<void> {
     let leaf = this.app.workspace.getLeavesOfType(TAB_CLEANER_VIEW)[0];
     if (!leaf) {
-      leaf = this.app.workspace.getRightLeaf(false) ?? this.app.workspace.getLeaf(true);
+      leaf =
+        this.app.workspace.getLeftLeaf(false) ??
+        this.app.workspace.getRightLeaf(false) ??
+        this.app.workspace.getLeaf(true);
       await leaf.setViewState({ type: TAB_CLEANER_VIEW, active: true });
     }
     await this.app.workspace.revealLeaf(leaf);
   }
 
   async closeTabs(tabs: TabDescriptor[], label: string): Promise<void> {
-    const safeTabs = tabs.filter((tab) => {
-      if (!tab.isRestorable && !tab.isEmpty) return false;
-      if (tab.isPinned && this.settings.pinnedProtection === "always") return false;
-      return true;
-    });
+    const activeContentLeaf = this.app.workspace.getMostRecentLeaf();
+    const safeTabs = tabs.filter(
+      (tab) =>
+        !tabProtectionReason(
+          { ...tab, isActive: tab.leaf === activeContentLeaf },
+          this.settings,
+        ),
+    );
     const records = toClosedRecords(safeTabs);
 
     for (const tab of safeTabs) this.ignoredHistoryLeaves.add(tab.leaf);
@@ -156,12 +163,6 @@ export default class TabCleanerPlugin extends Plugin {
     this.refreshViews();
   }
 
-  async trimAndSaveHistory(): Promise<void> {
-    this.recentBatches = this.recentBatches.slice(0, this.settings.recentBatchLimit);
-    await this.savePluginData();
-    this.refreshViews();
-  }
-
   async clearHistory(): Promise<void> {
     this.recentBatches = [];
     await this.savePluginData();
@@ -219,7 +220,9 @@ export default class TabCleanerPlugin extends Plugin {
       label,
       tabs: records,
     });
-    await this.trimAndSaveHistory();
+    this.recentBatches = retainedHistory(this.recentBatches);
+    await this.savePluginData();
+    this.refreshViews();
   }
 
   private refreshViews(): void {
@@ -240,7 +243,9 @@ export default class TabCleanerPlugin extends Plugin {
         query: strategy.query,
       })),
     };
-    this.recentBatches = Array.isArray(data?.recentBatches) ? data.recentBatches : [];
+    this.recentBatches = retainedHistory(
+      Array.isArray(data?.recentBatches) ? data.recentBatches : [],
+    );
   }
 
   private async savePluginData(): Promise<void> {

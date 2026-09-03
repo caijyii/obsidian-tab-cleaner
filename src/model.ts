@@ -1,12 +1,12 @@
 import { TFile, type App, type ViewState, type WorkspaceLeaf } from "obsidian";
 import type {
   CleanerStrategy,
-  TabCleanerSettings,
   TabDescriptor,
 } from "./types";
 import { duplicateFlags } from "./duplicate-groups";
 import { resolvePathlessTabTitle } from "./tab-title";
 import { extensionFromSource, stateString, titleFromSource } from "./tab-state";
+export { defaultSelected, tabProtectionReason } from "./tab-protection";
 
 const leafIds = new WeakMap<WorkspaceLeaf, string>();
 let nextLeafId = 1;
@@ -31,6 +31,7 @@ function titleFromPath(path: string): string {
 
 export function scanTabs(app: App): TabDescriptor[] {
   const tabs: TabDescriptor[] = [];
+  const activeContentLeaf = app.workspace.getMostRecentLeaf();
 
   app.workspace.iterateRootLeaves((leaf) => {
     const viewState = leaf.getViewState();
@@ -63,7 +64,7 @@ export function scanTabs(app: App): TabDescriptor[] {
       isEmpty,
       isDuplicate: false,
       isPinned: viewState.pinned === true,
-      isActive: app.workspace.activeLeaf === leaf,
+      isActive: activeContentLeaf === leaf,
       isRestorable: isEmpty || file instanceof TFile || (viewState.type === "webviewer" && !!url),
     });
   });
@@ -84,19 +85,4 @@ export function matchesSearch(tab: TabDescriptor, query: string): boolean {
 
 export function matchesStrategy(tab: TabDescriptor, strategy: CleanerStrategy): boolean {
   return matchesSearch(tab, strategy.query);
-}
-
-export function tabProtectionReason(
-  tab: TabDescriptor,
-  settings: TabCleanerSettings,
-): "unrestorable" | "pinned" | null {
-  if (!tab.isRestorable && !tab.isEmpty) return "unrestorable";
-  if (tab.isPinned && settings.pinnedProtection === "always") return "pinned";
-  return null;
-}
-
-export function defaultSelected(tab: TabDescriptor, settings: TabCleanerSettings): boolean {
-  if (tabProtectionReason(tab, settings)) return false;
-  if (tab.isActive && settings.protectActiveTab) return false;
-  return true;
 }
