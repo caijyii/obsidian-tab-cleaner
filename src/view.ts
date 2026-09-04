@@ -21,6 +21,7 @@ import {
 } from "./model";
 import { duplicateDefaultSelectionFlags } from "./duplicate-groups";
 import { filterOrders } from "./filter-order";
+import { tabListLabel } from "./tab-list-label";
 import { extensionFromSource, stateString } from "./tab-state";
 import { SourceEventRegistry } from "./source-event-registry";
 import type { BuiltInFilter, CleanerStrategy, ClosedTabRecord, TabDescriptor } from "./types";
@@ -234,9 +235,9 @@ export class TabCleanerView extends ItemView {
       if (strategy.id === activeStrategy?.id) {
         edit = filters.createEl("button", {
           cls: "clickable-icon tab-cleaner__filter-edit",
-          attr: { "aria-label": text.editStrategy(strategy.name) },
+          attr: { "aria-label": text.manageStrategy(strategy.name) },
         });
-        setIcon(edit, "pencil");
+        setIcon(edit, "settings-2");
         edit.addEventListener("click", () => {
           new StrategyModal(this.plugin, {
             strategy,
@@ -428,7 +429,8 @@ export class TabCleanerView extends ItemView {
     const selectedVisibleCount = selectableTabs.filter((tab) => this.selected.has(tab.id)).length;
     const allSelected =
       selectableTabs.length > 0 && selectedVisibleCount === selectableTabs.length;
-    heading.createEl("h3", { text: text.openTabsCount(tabs.length) });
+    const listLabel = tabListLabel(this.filter, this.query, this.plugin.settings.strategies, text);
+    heading.createEl("h3", { text: text.tabListCount(listLabel, tabs.length) });
 
     const headingActions = heading.createDiv({ cls: "tab-cleaner__heading-actions" });
     const pinnedProtected = this.plugin.settings.pinnedProtection === "always";
@@ -740,7 +742,7 @@ export class StrategyModal extends Modal {
   onOpen(): void {
     const text = strings(getLocale());
     this.contentEl.createEl("h2", {
-      text: this.options.strategy ? text.strategyDialogEdit : text.strategyDialogCreate,
+      text: this.options.strategy ? text.strategyDialogManage : text.strategyDialogCreate,
     });
     const searchSetting = new Setting(this.contentEl).setName(text.search);
     searchSetting.setDesc(this.query);
