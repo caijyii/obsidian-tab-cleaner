@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
+import { App, PluginSettingTab, requireApiVersion, Setting, type SettingDefinitionItem } from "obsidian";
 import { setDestructiveButton } from "./button-compat";
 import { getLocale, strings } from "./i18n";
 import { filterOrders } from "./filter-order";
@@ -29,7 +29,7 @@ export class TabCleanerSettingTab extends PluginSettingTab {
   }
 
   refresh(): void {
-    if (typeof this.update === "function") this.update();
+    if (requireApiVersion("1.13.0") && typeof this.update === "function") this.update();
     else if (this.containerEl.isConnected) this.renderLegacy();
   }
 

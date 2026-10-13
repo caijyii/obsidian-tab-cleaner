@@ -242,7 +242,7 @@
 }
 
 .tab-cleaner__section-title:hover .tab-cleaner__filter-edit,
-.tab-cleaner__section-title:focus-within .tab-cleaner__filter-edit {
+.tab-cleaner__section-title .tab-cleaner__filter-edit:focus-visible {
   width: 1.65rem;
   margin-left: 0.1rem;
   padding: 0.25rem;

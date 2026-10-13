@@ -174,6 +174,7 @@ function fixture({ pinnedFilterIds = [], savedSettings, saveBarrier, modern = fa
     Modal: class {},
     TFile: class {},
     getLanguage: () => "zh",
+    requireApiVersion(version) { assert.equal(version, "1.13.0"); return modern; },
   };
   const module = { exports: {} };
   vm.runInNewContext(compiled.outputFiles[0].text, {
@@ -245,6 +246,16 @@ test("declarative and legacy settings share searchable names, descriptions, and 
     assert.equal(plugin.settings.protectActiveTab, false);
     assert.equal(saves.at(-1).protectActiveTab, false);
   }
+});
+
+test("older hosts refresh settings without accessing the newer update API", () => {
+  const { tab, plugin, containerEl, row } = fixture();
+  Object.defineProperty(tab, "update", { get() { throw new Error("1.13 API must not be accessed on an older host"); } });
+  containerEl.scrollTop = 180;
+  plugin.settings.strategies[0].name = "改名后的检索";
+  tab.refresh();
+  assert.equal(row("改名后的检索").name, "改名后的检索");
+  assert.equal(containerEl.scrollTop, 180);
 });
 
 test("modern pin and order changes update the definitions without invoking display and preserve scroll", async () => {

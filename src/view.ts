@@ -189,9 +189,8 @@ export class TabCleanerView extends ItemView {
       composing = false;
       this.applySearchQuery(input.value);
     });
-    input.addEventListener("input", (event) => {
-      const inputEvent = event as InputEvent;
-      if (composing || (inputEvent.instanceOf?.(InputEvent) && inputEvent.isComposing)) return;
+    input.addEventListener("input", (event: InputEvent) => {
+      if (composing || (event.instanceOf?.(InputEvent) && event.isComposing)) return;
       this.applySearchQuery(input.value);
     });
 

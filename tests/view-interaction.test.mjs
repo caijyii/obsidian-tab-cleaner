@@ -361,6 +361,7 @@ async function fixture({
     Setting,
     TFile: class {},
     getLanguage: () => locale,
+    requireApiVersion: () => false,
     setIcon(element, icon) {
       element.empty();
       element.createSvg("svg", { attr: { "data-icon": icon } });
