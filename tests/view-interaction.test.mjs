@@ -412,6 +412,12 @@ async function fixture({
         : normalizePinnedFilterIds(order, this.settings.strategies.map(({ id }) => id));
       await this.saveSettings();
     },
+    async removeStrategy(id) {
+      this.settings.strategies = this.settings.strategies.filter((strategy) => strategy.id !== id);
+      this.settings.pinnedFilterIds = setFilterPinned(this.settings.pinnedFilterIds, id, false);
+      this.settings.recentFilterIds = this.settings.recentFilterIds.filter((recentId) => recentId !== id);
+      await this.saveSettings();
+    },
     markFilterUsed(id) {
       usedFilterIds.push(id);
       this.settings.recentFilterIds = [id, ...this.settings.recentFilterIds.filter((savedId) => savedId !== id)];
@@ -707,6 +713,92 @@ function modalOrderIcons(modal) {
     .filter((component) => component.buttonEl.hasClass("tab-cleaner__group-order-button"))
     .map((component) => component.icon);
 }
+
+test("current built-in and custom management buttons share the list title and open the selected group", async () => {
+  const { root, plugin, openedModals } = await fixture({
+    strategies: [{ id: "custom", name: "My search", query: "tab" }],
+    pinnedFilterIds: ["empty", "duplicates", "custom"],
+  });
+  for (const [id, label] of [["empty", "Empty"], ["custom", "My search"], ["duplicates", "Duplicates"]]) {
+    filterButton(root, label).fire("click");
+    const buttons = root.findAll("tab-cleaner__filter-edit");
+    assert.equal(buttons.length, 1);
+    const button = buttons[0];
+    assert.equal(button.parentNode.hasClass("tab-cleaner__section-title"), true);
+    assert.ok(button.parentNode.children.some((element) => element.tagName === "h3"));
+    assert.ok(button.getAttribute("aria-label").includes(label));
+    assert.equal(button.getAttribute("data-tooltip-delay"), "200");
+    assert.equal(root.findAll("tab-cleaner__filters")[0].findAll("tab-cleaner__filter-edit").length, 0);
+    assert.equal(root.findAll("tab-cleaner__heading-actions")[0].findAll("tab-cleaner__filter-edit").length, 0);
+    button.fire("click");
+    const modal = openedModals.at(-1);
+    if (id === "custom") {
+      assert.equal(modalComponents(modal, "text")[0].inputEl.value, label);
+    } else {
+      assert.equal(modalComponents(modal, "text").length, 0);
+      assert.ok(modal.contentEl.children.find((element) => element.tagName === "h2").textContent.includes(label));
+    }
+    const previousPins = [...plugin.settings.pinnedFilterIds];
+    await modalComponents(modal, "toggle")[0].toggleEl.click();
+    assert.deepEqual(plugin.settings.pinnedFilterIds, previousPins.filter((pinnedId) => pinnedId !== id));
+    modal.close();
+  }
+});
+
+test("All and free-text search offer no current-group management entry", async () => {
+  const { root } = await fixture({ strategies: [{ id: "custom", name: "My search", query: "tab" }] });
+  assert.equal(root.findAll("tab-cleaner__filter-edit").length, 0);
+  filterButton(root, "Empty").fire("click");
+  assert.equal(root.findAll("tab-cleaner__filter-edit").length, 1);
+  filterButton(root, "All").fire("click");
+  assert.equal(root.findAll("tab-cleaner__filter-edit").length, 0);
+  filterButton(root, "My search").fire("click");
+  const input = root.querySelector('input[type="search"]');
+  input.value = "First";
+  input.fire("input");
+  assert.equal(root.findAll("tab-cleaner__filter-edit").length, 0);
+});
+
+test("a built-in or custom group with zero matches still has management beside its list title", async () => {
+  const { root, openedModals } = await fixture({
+    pendingWebviewer: true,
+    strategies: [{ id: "custom", name: "No matches", query: "missing-query" }],
+  });
+  for (const label of ["Duplicates", "No matches"]) {
+    filterButton(root, label).fire("click");
+    assert.equal(root.findAll("tab-cleaner__row").length, 0);
+    const button = root.findAll("tab-cleaner__filter-edit")[0];
+    assert.ok(button, "empty results must not remove the group's management entry");
+    assert.equal(button.parentNode.hasClass("tab-cleaner__section-title"), true);
+    button.fire("click");
+    assert.ok(openedModals.at(-1));
+    openedModals.at(-1).close();
+  }
+});
+
+test("deleting the custom group managed from its list title returns the view to All", async () => {
+  const { root, plugin, openedModals, usedFilterIds } = await fixture({
+    strategies: [{ id: "custom", name: "My search", query: "tab" }],
+    pinnedFilterIds: ["empty", "custom", "duplicates"],
+  });
+  filterButton(root, "My search").fire("click");
+  root.findAll("tab-cleaner__filter-edit")[0].fire("click");
+  const modal = openedModals.at(-1);
+  const deleteButton = modalComponents(modal, "button").find((component) => component.warning);
+  await deleteButton.buttonEl.click();
+  const confirmation = openedModals.at(-1);
+  await modalComponents(confirmation, "button").find((component) => component.warning).buttonEl.click();
+
+  assert.equal(modal.closed, true);
+  assert.equal(confirmation.closed, true);
+  assert.deepEqual(plugin.settings.strategies, []);
+  assert.deepEqual(plugin.settings.pinnedFilterIds, ["empty", "duplicates"]);
+  assert.deepEqual(plugin.settings.recentFilterIds, []);
+  assert.equal(filterButton(root, "All").hasClass("is-active"), true);
+  assert.equal(root.findAll("tab-cleaner__filter-edit").length, 0);
+  assert.equal(root.findAll("tab-cleaner__row").length, 2);
+  assert.deepEqual(usedFilterIds, ["custom"]);
+});
 
 test("built-in group management moves pinned order immediately and hides controls when unpinned", async () => {
   const { root, plugin, openedModals, saveCalls } = await fixture({

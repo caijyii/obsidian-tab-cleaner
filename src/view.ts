@@ -245,7 +245,6 @@ export class TabCleanerView extends ItemView {
       ),
     }));
     const strategies = this.plugin.settings.strategies;
-    const activeStrategy = strategies.find((strategy) => strategy.id === this.filter);
     const orders = filterOrders(
       builtInEntries.slice(1).map(({ id }) => id),
       strategies.map(({ id }) => id),
@@ -279,34 +278,8 @@ export class TabCleanerView extends ItemView {
       .map((id) => optionalEntryById.get(id))
       .filter((entry): entry is (typeof allOptionalEntries)[number] => entry !== undefined);
 
-    let edit: HTMLButtonElement | null = null;
-    const activeBuiltIn = builtIns.find(({ id }) => id !== "all" && id === this.filter);
-    const activeGroupName = activeStrategy?.name ?? activeBuiltIn?.label;
-    if (activeGroupName) {
-      edit = filters.createEl("button", {
-        cls: "clickable-icon tab-cleaner__filter-edit",
-        attr: { "aria-label": text.manageStrategy(activeGroupName) },
-      });
-      setIcon(edit, "settings-2");
-      setTooltip(edit, text.manageStrategy(activeGroupName));
-      edit.addEventListener("click", () => {
-        if (activeStrategy) {
-          new StrategyModal(this.plugin, {
-            strategy: activeStrategy,
-            onChanged: (strategyId) => {
-              if (strategyId === null) this.filter = "all";
-              this.render();
-            },
-          }).open();
-        } else if (activeBuiltIn) {
-          new BuiltInGroupModal(this.plugin, activeBuiltIn.id, activeBuiltIn.label).open();
-        }
-      });
-    }
-
-    for (const { id, button } of optionalEntries) {
+    for (const { button } of optionalEntries) {
       filters.appendChild(button);
-      if (id === this.filter && edit) filters.appendChild(edit);
     }
 
     const more = filters.createEl("button", {
@@ -341,7 +314,6 @@ export class TabCleanerView extends ItemView {
       allButton,
       optionalEntries,
       more,
-      edit,
       this.filter,
       orders.priorityIds,
     );
@@ -381,7 +353,6 @@ export class TabCleanerView extends ItemView {
     allButton: HTMLButtonElement,
     optionalEntries: Array<{ id: string; button: HTMLButtonElement }>,
     more: HTMLButtonElement,
-    edit: HTMLButtonElement | null,
     activeFilterId: string,
     priorityIds: string[],
   ): void {
@@ -393,7 +364,6 @@ export class TabCleanerView extends ItemView {
       const allWidth = allButton.offsetWidth;
       const optionalWidths = optionalEntries.map(({ button }) => button.offsetWidth);
       const moreWidth = more.offsetWidth;
-      const editWidth = edit?.offsetWidth ?? 0;
 
       const totalWidth = (widths: number[]): number =>
         widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, widths.length - 1);
@@ -404,7 +374,7 @@ export class TabCleanerView extends ItemView {
         }
         more.toggleClass("is-layout-hidden", optionalEntries.length === 0);
 
-        const fixedWidths = [allWidth, ...(edit ? [editWidth] : [])];
+        const fixedWidths = [allWidth];
         if (totalWidth([...fixedWidths, ...optionalWidths]) <= filters.clientWidth) {
           more.addClass("is-layout-hidden");
           this.filterDrag?.updateAvailability();
@@ -495,7 +465,9 @@ export class TabCleanerView extends ItemView {
     const allSelected =
       selectableTabs.length > 0 && selectedVisibleCount === selectableTabs.length;
     const listLabel = tabListLabel(this.filter, this.query, this.plugin.settings.strategies, text);
-    heading.createEl("h3", { text: text.tabListCount(listLabel, tabs.length) });
+    const title = heading.createDiv({ cls: "tab-cleaner__section-title" });
+    title.createEl("h3", { text: text.tabListCount(listLabel, tabs.length) });
+    this.addGroupManagementButton(title);
 
     const headingActions = heading.createDiv({ cls: "tab-cleaner__heading-actions" });
     const pinnedProtected = this.plugin.settings.pinnedProtection === "always";
@@ -574,6 +546,37 @@ export class TabCleanerView extends ItemView {
 
     const list = section.createDiv({ cls: "tab-cleaner__list" });
     for (const tab of tabs) this.renderTabRow(list, tab);
+  }
+
+  private addGroupManagementButton(parent: HTMLElement): void {
+    if (this.query.trim()) return;
+    const text = strings(getLocale());
+    const activeStrategy = this.plugin.settings.strategies.find((strategy) => strategy.id === this.filter);
+    const activeBuiltIn = this.filter === "empty" || this.filter === "duplicates"
+      ? { id: this.filter, label: this.filter === "empty" ? text.empty : text.duplicates }
+      : null;
+    const name = activeStrategy?.name ?? activeBuiltIn?.label;
+    if (!name) return;
+
+    const edit = parent.createEl("button", {
+      cls: "clickable-icon tab-cleaner__filter-edit",
+      attr: { "aria-label": text.manageStrategy(name) },
+    });
+    setIcon(edit, "settings-2");
+    setTooltip(edit, text.manageStrategy(name), { placement: "top", delay: 200 });
+    edit.addEventListener("click", () => {
+      if (activeStrategy) {
+        new StrategyModal(this.plugin, {
+          strategy: activeStrategy,
+          onChanged: (strategyId) => {
+            if (strategyId === null) this.filter = "all";
+            this.render();
+          },
+        }).open();
+      } else if (activeBuiltIn) {
+        new BuiltInGroupModal(this.plugin, activeBuiltIn.id, activeBuiltIn.label).open();
+      }
+    });
   }
 
   private renderTabRow(list: HTMLElement, tab: TabDescriptor): void {
