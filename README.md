@@ -78,6 +78,8 @@ The current group's management icon sits beside the list heading. It appears on 
 
 Protection disables only a tab's checkbox. Click its name or details to reveal it in the workspace. The pinned icon and active-tab marker use the theme accent color. The active marker appears to the right of the pinned icon and remains visible whether active-tab protection is enabled or disabled.
 
+Both tab-protection shortcuts have transparent backgrounds. Enabled protection uses accent-colored icons without a slash; disabled protection uses muted icons with a slash.
+
 ## Safety and privacy
 
 - Tab Cleaner does not send data anywhere.

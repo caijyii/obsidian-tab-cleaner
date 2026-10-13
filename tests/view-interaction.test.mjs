@@ -64,6 +64,7 @@ class FakeElement {
 
   createDiv(options = {}) { return this.createEl("div", options); }
   createSpan(options = {}) { return this.createEl("span", options); }
+  createSvg(tagName, options = {}) { return this.createEl(tagName, options); }
   addClass(...classes) { classes.forEach((name) => this.classes.add(name)); }
   removeClass(...classes) { classes.forEach((name) => this.classes.delete(name)); }
   hasClass(name) { return this.classes.has(name); }
@@ -155,9 +156,10 @@ class FakeElement {
   }
 
   querySelector(selector) {
-    if (selector === 'input[type="search"]') {
+    if (selector === 'input[type="search"]' || selector === "svg") {
       const find = (element) => {
-        if (element.tagName === "input" && element.type === "search") return element;
+        if (selector === "svg" && element.tagName === "svg") return element;
+        if (selector === 'input[type="search"]' && element.tagName === "input" && element.type === "search") return element;
         for (const child of element.children) {
           const match = find(child);
           if (match) return match;
@@ -340,7 +342,10 @@ async function fixture({
     Setting,
     TFile: class {},
     getLanguage: () => locale,
-    setIcon() {},
+    setIcon(element, icon) {
+      element.empty();
+      element.createSvg("svg", { attr: { "data-icon": icon } });
+    },
     setTooltip(element, label, options) {
       element.setAttribute("aria-label", label);
       if (options?.delay) element.setAttribute("data-tooltip-delay", options.delay);
@@ -576,11 +581,19 @@ test("both protection buttons describe the next action after toggling in Chinese
     const unprotectedButton = root.findAll("tab-cleaner__heading-icon")[index];
     assert.equal(unprotectedButton.getAttribute("aria-pressed"), "false");
     assert.equal(unprotectedButton.getAttribute("aria-label"), `开启${name}标签页保护`);
+    if (index === 0) {
+      assert.equal(unprotectedButton.querySelector("svg").getAttribute("data-icon"), "pin-off");
+    } else {
+      assert.equal(unprotectedButton.querySelector("svg").children.length, 1);
+      assert.equal(unprotectedButton.querySelector("svg").children[0].getAttribute("d"), "m2 2 20 20");
+    }
     unprotectedButton.fire("click");
 
     const protectedButton = root.findAll("tab-cleaner__heading-icon")[index];
     assert.equal(protectedButton.getAttribute("aria-pressed"), "true");
     assert.equal(protectedButton.getAttribute("aria-label"), `关闭${name}标签页保护`);
+    assert.equal(protectedButton.querySelector("svg").getAttribute("data-icon"), index === 0 ? "pin" : "crosshair");
+    assert.equal(protectedButton.querySelector("svg").children.length, 0);
   }
 });
 

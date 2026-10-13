@@ -474,8 +474,8 @@ export class TabCleanerView extends ItemView {
     const pinnedTooltip = text.pinnedProtectionAction(pinnedProtected);
     const pinnedButton = headingActions.createEl("button", {
       cls: pinnedProtected
-        ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle is-active"
-        : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle",
+        ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle is-active"
+        : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle",
       attr: {
         "aria-label": pinnedTooltip,
         "aria-pressed": String(pinnedProtected),
@@ -498,14 +498,17 @@ export class TabCleanerView extends ItemView {
     const activeTooltip = text.activeProtectionAction(activeProtected);
     const activeButton = headingActions.createEl("button", {
       cls: activeProtected
-        ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle is-active"
-        : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle",
+        ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle is-active"
+        : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle",
       attr: {
         "aria-label": activeTooltip,
         "aria-pressed": String(activeProtected),
       },
     });
     setIcon(activeButton, "crosshair");
+    if (!activeProtected) {
+      activeButton.querySelector("svg")?.createSvg("path", { attr: { d: "m2 2 20 20" } });
+    }
     setTooltip(activeButton, activeTooltip, { placement: "top", delay: 200 });
     activeButton.addEventListener("click", () => {
       this.plugin.settings.protectActiveTab = !activeProtected;

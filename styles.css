@@ -263,6 +263,23 @@
   background: var(--background-modifier-hover);
 }
 
+.tab-cleaner .tab-cleaner__heading-actions .tab-cleaner__protection-toggle,
+.tab-cleaner .tab-cleaner__heading-actions .tab-cleaner__protection-toggle:hover,
+.tab-cleaner .tab-cleaner__heading-actions .tab-cleaner__protection-toggle:focus-visible,
+.tab-cleaner .tab-cleaner__heading-actions .tab-cleaner__protection-toggle.is-active {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.tab-cleaner .tab-cleaner__heading-actions .tab-cleaner__protection-toggle.is-active {
+  color: var(--interactive-accent);
+}
+
+.tab-cleaner .tab-cleaner__heading-actions .tab-cleaner__protection-toggle:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
 .tab-cleaner__close-selected {
   flex: 0 0 auto;
   height: 1.65rem;
