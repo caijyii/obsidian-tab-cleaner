@@ -50,6 +50,25 @@ async function loadedPlugin(settings) {
   return { plugin, savedData };
 }
 
+test("actual settings saves refresh the owned search index after persisting without losing closed history", async () => {
+  const { plugin, savedData } = await loadedPlugin({ strategies: [], pinnedFilterIds: [] });
+  const history = [{ id: "history", closedAt: 100, label: "all", tabs: [] }];
+  plugin.recentBatches = structuredClone(history);
+  const indexed = [];
+  plugin.settingsTab = {
+    refresh() {
+      const names = Array.from(plugin.settings.strategies, (strategy) => strategy.name);
+      assert.deepEqual(savedData.at(-1).settings.strategies.map((strategy) => strategy.name), names);
+      indexed.push(names);
+    },
+  };
+  await plugin.addStrategy({ id: "new", name: "原名", query: "tab" });
+  await plugin.updateStrategy({ id: "new", name: "新名", query: "tab" });
+  await plugin.removeStrategy("new");
+  assert.deepEqual(indexed, [["原名"], ["新名"], []]);
+  for (const saved of savedData) assert.deepEqual(saved.recentBatches, history);
+});
+
 test("preserves the built-in pins for old configurations without an array", () => {
   for (const savedIds of [undefined, null, false, 0, "empty", { empty: true }]) {
     assert.deepEqual(normalizePinnedFilterIds(savedIds, ["custom"]), ["empty", "duplicates"]);

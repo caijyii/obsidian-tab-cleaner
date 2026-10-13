@@ -93,6 +93,22 @@ Both tab-protection shortcuts have transparent resting backgrounds and subtle ne
 - Reopening a cleanup batch restores one tab per history entry, even if `×N` indicates that several equivalent tabs were closed.
 - A recently closed file cannot be reopened after the file has been deleted or moved.
 
+## Build provenance and releases
+
+On Obsidian 1.13.0 and later, plugin settings are available through settings search. Earlier versions use the same settings through the legacy renderer; the minimum supported version remains 1.8.7.
+
+For future releases, push a version tag matching `package.json`, `manifest.json`, and `versions.json`. The **Build release assets** workflow tests and builds that exact commit, then generates GitHub artifact attestations for `main.js`, `manifest.json`, and `styles.css`. It uploads those three files as `tab-cleaner-VERSION` and does not publish a Release automatically.
+
+After the workflow succeeds, download its artifact and attach those exact three files individually to the GitHub Release. Do not rebuild them locally for upload. Release 1.1.3 and earlier were built locally and do not have these CI attestations.
+
+To verify a downloaded file with the GitHub CLI:
+
+```sh
+gh attestation verify main.js --repo caijyii/obsidian-tab-cleaner
+gh attestation verify styles.css --repo caijyii/obsidian-tab-cleaner
+gh attestation verify manifest.json --repo caijyii/obsidian-tab-cleaner
+```
+
 ## Feedback
 
 Please report bugs and feature requests in [GitHub Issues](https://github.com/caijyii/obsidian-tab-cleaner/issues).

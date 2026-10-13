@@ -98,6 +98,7 @@ export function strings(locale: Locale) {
         savedStrategiesDesc:
           "开启置顶开关后，可用上移、下移按钮调整置顶组的顺序；未置顶组按最近使用排列，空间足够时仍会显示。内置和自定义检索组均可置顶，自定义组还可编辑或删除。",
         builtInGroup: "内置检索组",
+        customGroup: "自定义检索组",
         builtInEmptyDescription: "筛选空白标签页。",
         builtInDuplicatesDescription: "筛选重复打开的标签页。",
         noStrategies: "还没有保存检索组。",
@@ -201,6 +202,7 @@ export function strings(locale: Locale) {
         savedStrategiesDesc:
           "Enable a group's pin toggle to show its up and down buttons and reorder pinned groups. Unpinned groups follow recent usage and remain visible when space allows. Both built-in and custom groups can be pinned. Custom groups can also be edited or deleted.",
         builtInGroup: "Built-in search group",
+        customGroup: "Custom search group",
         builtInEmptyDescription: "Filter empty tabs.",
         builtInDuplicatesDescription: "Filter duplicate open tabs.",
         noStrategies: "No saved search groups yet.",

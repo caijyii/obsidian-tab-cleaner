@@ -158,8 +158,10 @@ class FakeElement {
 
   querySelector(selector) {
     const controlId = selector.match(/^\[data-tab-cleaner-control="([\w-]+)"\]$/)?.[1];
-    if (selector === 'input[type="search"]' || selector === "svg" || controlId) {
+    const className = selector.match(/^\.([\w-]+)$/)?.[1];
+    if (selector === 'input[type="search"]' || selector === "svg" || controlId || className) {
       const find = (element) => {
+        if (className && element.hasClass(className)) return element;
         if (controlId && element.getAttribute("data-tab-cleaner-control") === controlId) return element;
         if (selector === "svg" && element.tagName === "svg") return element;
         if (selector === 'input[type="search"]' && element.tagName === "input" && element.type === "search") return element;
@@ -182,7 +184,13 @@ class FakeElement {
     if (selector === ":focus-visible") return this.ownerDocument.activeElement === this && this.ownerDocument.keyboardFocusVisible === true;
     throw new Error(`Unsupported fixture match: ${selector}`);
   }
-  focus() { this.ownerDocument.activeElement = this; }
+  focus() {
+    const previous = this.ownerDocument.activeElement;
+    if (previous === this) return;
+    previous?.fire("focusout");
+    this.ownerDocument.activeElement = this;
+    this.fire("focusin");
+  }
   setSelectionRange() {}
 }
 
@@ -477,6 +485,40 @@ function selectionControls(root) {
   assert.ok(controls, "expected selection and protection controls to share a wrapper");
   return controls;
 }
+
+test("keyboard protection visibility clears when focus or pointer interaction leaves keyboard mode", async () => {
+  const { root } = await fixture();
+  const document = root.ownerDocument;
+  document.keyboardFocusVisible = true;
+  const button = root.findAll("tab-cleaner__protection-toggle")[0];
+  button.focus();
+  assert.equal(selectionControls(root).hasClass("is-keyboard-focused"), true);
+  root.findAll("tab-cleaner__close-selected")[0].focus();
+  assert.equal(selectionControls(root).hasClass("is-keyboard-focused"), false);
+  button.focus();
+  assert.equal(selectionControls(root).hasClass("is-keyboard-focused"), true);
+  document.keyboardFocusVisible = false;
+  button.fire("pointerdown");
+  assert.equal(selectionControls(root).hasClass("is-keyboard-focused"), false);
+  button.fire("keydown", { key: "Enter" });
+  assert.equal(selectionControls(root).hasClass("is-keyboard-focused"), true);
+});
+
+test("foreign-window composing input waits until composition ends", async () => {
+  const { root, view } = await fixture();
+  const input = root.querySelector('input[type="search"]');
+  input.value = "输入法候选";
+  let checked = 0;
+  input.fire("input", {
+    isComposing: true,
+    instanceOf(Type) { assert.equal(Type.name, "InputEvent"); checked += 1; return true; },
+  });
+  assert.equal(checked, 1);
+  assert.equal(view.query, "");
+  input.value = "输入法结果";
+  input.fire("compositionend");
+  assert.equal(view.query, "输入法结果");
+});
 
 test("keyboard protection toggles retain focus across settings and workspace redraws", async () => {
   const { root, view } = await fixture();
@@ -920,10 +962,11 @@ test("deleting the custom group managed from its list title returns the view to 
   filterButton(root, "My search").fire("click");
   root.findAll("tab-cleaner__filter-edit")[0].fire("click");
   const modal = openedModals.at(-1);
-  const deleteButton = modalComponents(modal, "button").find((component) => component.warning);
+  const deleteButton = modalComponents(modal, "button").find((component) => component.buttonEl.textContent === "Delete search group");
+  assert.ok(deleteButton);
   await deleteButton.buttonEl.click();
   const confirmation = openedModals.at(-1);
-  await modalComponents(confirmation, "button").find((component) => component.warning).buttonEl.click();
+  await modalComponents(confirmation, "button").find((component) => component.buttonEl.textContent === "Delete").buttonEl.click();
 
   assert.equal(modal.closed, true);
   assert.equal(confirmation.closed, true);

@@ -71,7 +71,7 @@ class Element {
   }
 }
 
-function fixture({ pinnedFilterIds = [], savedSettings, saveBarrier } = {}) {
+function fixture({ pinnedFilterIds = [], savedSettings, saveBarrier, modern = false } = {}) {
   const containerEl = new Element("div", true);
   const renderedSettings = [];
   class Component {
@@ -151,6 +151,21 @@ function fixture({ pinnedFilterIds = [], savedSettings, saveBarrier } = {}) {
       this.containerEl = containerEl;
     }
   }
+  if (modern) {
+    PluginSettingTab.prototype.update = function () {
+      this.updateCalls = (this.updateCalls ?? 0) + 1;
+      this.settingItems = this.getSettingDefinitions();
+      if (!this.containerEl.isConnected) return;
+      const scrollTop = this.containerEl.scrollTop;
+      this.containerEl.empty();
+      for (const definition of this.settingItems) {
+        const setting = new Setting(this.containerEl).setName(definition.name);
+        if (definition.desc !== undefined) setting.setDesc(definition.desc);
+        definition.render(setting);
+      }
+      this.containerEl.scrollTop = scrollTop;
+    };
+  }
   const obsidian = {
     Component,
     Setting,
@@ -198,7 +213,8 @@ function fixture({ pinnedFilterIds = [], savedSettings, saveBarrier } = {}) {
     },
   };
   const tab = new module.exports.TabCleanerSettingTab({}, plugin);
-  tab.display();
+  if (modern) tab.refresh();
+  else tab.display();
   function row(name) {
     const found = renderedSettings.find((setting) => setting.settingEl.isConnected && setting.name === name);
     assert.ok(found, `expected the current ${name} setting row`);
@@ -209,6 +225,89 @@ function fixture({ pinnedFilterIds = [], savedSettings, saveBarrier } = {}) {
     .map((setting) => setting.name);
   return { tab, plugin, row, moveCalls, pinCalls, saves, containerEl, groupNames };
 }
+
+test("declarative and legacy settings share searchable names, descriptions, and controls", async () => {
+  const legacy = fixture({ pinnedFilterIds: ["custom", "duplicates"] });
+  const modern = fixture({ pinnedFilterIds: ["custom", "duplicates"], modern: true });
+  const metadata = (tab) => Array.from(tab.getSettingDefinitions(), ({ name, desc, searchable }) => ({ name, desc, searchable }));
+  assert.deepEqual(metadata(modern.tab), metadata(legacy.tab));
+  assert.deepEqual(modern.groupNames(), legacy.groupNames());
+  const searchableNames = modern.tab.settingItems.filter((item) => item.searchable !== false).map((item) => item.name);
+  for (const name of ["保护固定标签页", "保护当前标签页", "空白", "重复", "我的检索"]) {
+    assert.ok(searchableNames.includes(name), `${name} must be available to settings search`);
+  }
+  const custom = modern.tab.settingItems.find((item) => item.name === "我的检索");
+  for (const query of ["置顶", "上移", "下移", "编辑", "删除检索组"]) {
+    assert.ok(custom.aliases.some((alias) => alias.includes(query)), `${query} must find the group's custom controls`);
+  }
+  for (const { plugin, row, saves } of [legacy, modern]) {
+    await toggle(row("保护当前标签页")).toggleEl.click();
+    assert.equal(plugin.settings.protectActiveTab, false);
+    assert.equal(saves.at(-1).protectActiveTab, false);
+  }
+});
+
+test("modern pin and order changes update the definitions without invoking display and preserve scroll", async () => {
+  const { tab, row, containerEl, plugin } = fixture({ modern: true, pinnedFilterIds: ["duplicates"] });
+  tab.display = () => { throw new Error("the modern host must bypass display"); };
+  containerEl.scrollTop = 240;
+  await toggle(row("空白")).toggleEl.click();
+  assert.equal(containerEl.scrollTop, 240);
+  assert.deepEqual(plugin.settings.pinnedFilterIds, ["duplicates", "empty"]);
+  await orderButton(row("空白"), "up").buttonEl.click();
+  assert.equal(containerEl.scrollTop, 240);
+  assert.deepEqual(plugin.settings.pinnedFilterIds, ["empty", "duplicates"]);
+  assert.deepEqual(Array.from(tab.settingItems.filter((item) => ["空白", "重复", "我的检索"].includes(item.name)), (item) => item.name), ["空白", "重复", "我的检索"]);
+});
+
+test("modern hidden tabs refresh search metadata after additions, renames, and deletions", () => {
+  const { tab, plugin, containerEl } = fixture({ modern: true });
+  containerEl.connectedRoot = false;
+  tab.display = () => { throw new Error("hidden search updates must not call display"); };
+  const initialChildren = [...containerEl.children];
+  plugin.settings.strategies[0].name = "改名后的检索";
+  plugin.settings.strategies.push({ id: "another", name: "新检索", query: "new" });
+  tab.refresh();
+  let names = Array.from(tab.settingItems, (item) => item.name);
+  assert.ok(names.includes("改名后的检索") && names.includes("新检索"));
+  assert.equal(names.includes("我的检索"), false);
+  plugin.settings.strategies.splice(0, 1);
+  tab.refresh();
+  names = Array.from(tab.settingItems, (item) => item.name);
+  assert.equal(names.includes("改名后的检索"), false);
+  assert.deepEqual(containerEl.children, initialChildren);
+});
+
+test("duplicate custom names have unique search keys without changing their visible names or pin-order identity", async () => {
+  const strategies = [
+    { id: "first", name: "空白", query: "one" },
+    { id: "second", name: "空白", query: "two" },
+    { id: "reserved", name: "空白 · 自定义检索组 1", query: "three" },
+    { id: "setting-name", name: "保护当前标签页", query: "four" },
+  ];
+  const { tab, plugin } = fixture({ modern: true, savedSettings: {
+    strategies, pinnedFilterIds: [], recentFilterIds: [],
+    pinnedProtection: "always", protectActiveTab: true, recentBatchLimit: 20,
+  } });
+  const names = Array.from(tab.settingItems, (item) => item.name);
+  assert.equal(new Set(names).size, names.length);
+  const keyForQuery = (query) => tab.settingItems.find((item) => item.desc?.includes(`“${query}”`));
+  const first = keyForQuery("one");
+  const second = keyForQuery("two");
+  assert.ok(first && second);
+  assert.notEqual(first.name, second.name);
+  assert.ok(first.aliases.includes("空白") && second.aliases.includes("空白"));
+  assert.notEqual(first.name, "空白 · 自定义检索组 1");
+  const visibleNames = [];
+  for (const definition of [first, second]) {
+    definition.render({ setName(name) { visibleNames.push(name); return this; }, addExtraButton() { return this; }, addToggle() { return this; }, controlEl: { createSpan() {} } });
+  }
+  assert.deepEqual(visibleNames, ["空白", "空白"]);
+  const keys = [first.name, second.name];
+  plugin.settings.pinnedFilterIds = ["second", "first"];
+  tab.refresh();
+  assert.deepEqual([keyForQuery("one").name, keyForQuery("two").name], keys);
+});
 
 function toggle(row) {
   const toggles = row.components.filter((component) => component.kind === "toggle");

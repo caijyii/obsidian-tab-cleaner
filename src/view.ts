@@ -28,13 +28,14 @@ import { PinnedFilterDrag } from "./pinned-filter-drag";
 import { movePinnedFilter, setFilterPinned } from "./filter-settings";
 import { extensionFromSource, stateString } from "./tab-state";
 import { SourceEventRegistry } from "./source-event-registry";
+import { setDestructiveButton } from "./button-compat";
 import type { BuiltInFilter, CleanerStrategy, ClosedTabRecord, TabDescriptor } from "./types";
 
 export const TAB_CLEANER_VIEW = "obsidian-tab-cleaner-view";
 
 export class TabCleanerView extends ItemView {
   private query = "";
-  private filter: BuiltInFilter | string = "all";
+  private filter: string = "all";
   private selected = new Set<string>();
   private filterResizeObserver: ResizeObserver | null = null;
   private webviewerRefreshTimer: number | null = null;
@@ -68,6 +69,7 @@ export class TabCleanerView extends ItemView {
   async onOpen(): Promise<void> {
     this.registerDomEvent(this.contentEl, "pointerdown", (event) => {
       if (event.isPrimary !== false) this.suppressFilterClick = false;
+      this.contentEl.querySelector(".tab-cleaner__selection-controls")?.removeClass("is-keyboard-focused");
     }, { capture: true });
     this.registerEvent(
       this.app.workspace.on("layout-change", () => {
@@ -188,7 +190,8 @@ export class TabCleanerView extends ItemView {
       this.applySearchQuery(input.value);
     });
     input.addEventListener("input", (event) => {
-      if (composing || (event instanceof InputEvent && event.isComposing)) return;
+      const inputEvent = event as InputEvent;
+      if (composing || (inputEvent.instanceOf?.(InputEvent) && inputEvent.isComposing)) return;
       this.applySearchQuery(input.value);
     });
 
@@ -482,6 +485,15 @@ export class TabCleanerView extends ItemView {
 
     const headingActions = heading.createDiv({ cls: "tab-cleaner__heading-actions" });
     const selectionControls = headingActions.createDiv({ cls: "tab-cleaner__selection-controls" });
+    selectionControls.addEventListener("focusin", () => {
+      const focused = selectionControls.ownerDocument.activeElement;
+      selectionControls.toggleClass("is-keyboard-focused", Boolean(
+        focused && selectionControls.contains(focused) && focused.matches(":focus-visible"),
+      ));
+    });
+    selectionControls.addEventListener("focusout", () => selectionControls.removeClass("is-keyboard-focused"));
+    selectionControls.addEventListener("keydown", () => selectionControls.addClass("is-keyboard-focused"));
+    headingActions.addEventListener("pointerdown", () => selectionControls.removeClass("is-keyboard-focused"));
     selectionControls.toggleClass("is-revealed", this.protectionControlsRevealed);
     selectionControls.addEventListener("pointerleave", () => {
       // A render can detach the previous controls while the pointer stays here.
@@ -1024,9 +1036,8 @@ export class StrategyModal extends Modal {
     const actions = new Setting(this.contentEl);
     if (this.options.strategy) {
       actions.addButton((button) =>
-        button
+        setDestructiveButton(button)
           .setButtonText(text.deleteStrategy)
-          .setWarning()
           .onClick(() => {
             const strategy = this.plugin.settings.strategies.find(({ id }) => id === this.strategyId);
             if (strategy) this.confirmDelete(strategy);
@@ -1082,7 +1093,7 @@ export class ConfirmStrategyDeleteModal extends Modal {
     const actions = new Setting(this.contentEl);
     actions.addButton((button) => button.setButtonText(text.cancel).onClick(() => this.close()));
     actions.addButton((button) =>
-      button.setButtonText(text.delete).setWarning().onClick(async () => {
+      setDestructiveButton(button).setButtonText(text.delete).onClick(async () => {
         await this.onConfirm();
         this.close();
       }),

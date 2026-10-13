@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: TabCleanerSettings = {
 export default class TabCleanerPlugin extends Plugin {
   settings: TabCleanerSettings = structuredClone(DEFAULT_SETTINGS);
   recentBatches: ClosedBatch[] = [];
+  private settingsTab: TabCleanerSettingTab | null = null;
   private observedOpenTabs = new Map<WorkspaceLeaf, TabDescriptor>();
   private historyTrackingReady = false;
   private reconcilingHistory = false;
@@ -50,7 +51,8 @@ export default class TabCleanerPlugin extends Plugin {
       name: text.openCommand,
       callback: () => void this.activateView(),
     });
-    this.addSettingTab(new TabCleanerSettingTab(this.app, this));
+    this.settingsTab = new TabCleanerSettingTab(this.app, this);
+    this.addSettingTab(this.settingsTab);
     this.app.workspace.onLayoutReady(() => {
       this.observedOpenTabs = this.snapshotOpenTabs();
       this.historyTrackingReady = true;
@@ -214,6 +216,7 @@ export default class TabCleanerPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.savePluginData();
+    this.settingsTab?.refresh();
     this.refreshViews();
   }
 

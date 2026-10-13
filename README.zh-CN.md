@@ -93,6 +93,22 @@ Tab Cleaner 已进入 Obsidian 第三方插件目录：
 - 如果 `×N` 表示多个相同标签页被关闭，重新打开时每条历史记录仍只恢复一个标签页。
 - 文件被删除或移动后，对应的最近关闭记录无法重新打开。
 
+## 构建证明与发布
+
+Obsidian 1.13.0 及以上版本可通过设置搜索查找本插件的配置项。旧版仍通过原有渲染入口使用同一套配置，最低兼容版本保持 1.8.7。
+
+后续发布时，推送与 `package.json`、`manifest.json`、`versions.json` 一致的版本标签。**Build release assets** 工作流会测试并构建该标签对应的提交，为 `main.js`、`manifest.json`、`styles.css` 生成 GitHub 构建证明，并把这三个文件上传为 `tab-cleaner-版本号` 产物；不会自动发布 Release。
+
+工作流通过后，下载该次运行的产物，将这三个原文件分别附到 GitHub Release。不要重新在本地构建后上传，以免文件与证明不一致。1.1.3 及更早版本由本地构建，不包含这类 CI 构建证明。
+
+用户可以用 GitHub CLI 验证下载的文件：
+
+```sh
+gh attestation verify main.js --repo caijyii/obsidian-tab-cleaner
+gh attestation verify styles.css --repo caijyii/obsidian-tab-cleaner
+gh attestation verify manifest.json --repo caijyii/obsidian-tab-cleaner
+```
+
 ## 反馈
 
 请通过 [GitHub Issues](https://github.com/caijyii/obsidian-tab-cleaner/issues) 报告问题或提出功能建议。

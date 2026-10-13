@@ -142,8 +142,15 @@
 .tab-cleaner .tab-cleaner__filter:hover,
 .tab-cleaner .tab-cleaner__filter.is-active {
   background: var(--tab-cleaner-filter-fallback);
-  background: color-mix(in srgb, var(--tab-cleaner-filter-tone) var(--tab-cleaner-filter-strength), transparent);
   color: var(--text-normal);
+}
+
+@supports (background: color-mix(in srgb, black 6%, transparent)) {
+  .tab-cleaner .tab-cleaner__filter,
+  .tab-cleaner .tab-cleaner__filter:hover,
+  .tab-cleaner .tab-cleaner__filter.is-active {
+    background: color-mix(in srgb, var(--tab-cleaner-filter-tone) var(--tab-cleaner-filter-strength), transparent);
+  }
 }
 
 .tab-cleaner .tab-cleaner__filter.is-active {
@@ -274,7 +281,7 @@
 }
 
 .tab-cleaner__selection-controls.is-revealed .tab-cleaner__protection-controls,
-.tab-cleaner__selection-controls:has(:focus-visible) .tab-cleaner__protection-controls {
+.tab-cleaner__selection-controls.is-keyboard-focused .tab-cleaner__protection-controls {
   width: auto;
   margin-right: 0.1rem;
   overflow: visible;
@@ -292,7 +299,7 @@
   pointer-events: auto;
 }
 
-.tab-cleaner__selection-controls:has(:focus-visible) .tab-cleaner__protection-toggle {
+.tab-cleaner__selection-controls.is-keyboard-focused .tab-cleaner__protection-toggle {
   opacity: 1;
   pointer-events: auto;
 }
