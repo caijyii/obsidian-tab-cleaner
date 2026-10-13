@@ -83,24 +83,87 @@
 }
 
 .tab-cleaner__filter {
+  --tab-cleaner-filter-tone: var(--text-muted);
+  --tab-cleaner-filter-strength: 6%;
+  --tab-cleaner-filter-hover-strength: 12%;
+  --tab-cleaner-filter-fallback: var(--background-primary-alt);
+}
+
+.tab-cleaner .tab-cleaner__filter {
   flex: 0 0 auto;
+  box-sizing: border-box;
   min-width: 0;
   height: 1.65rem;
   padding: 0 0.45rem;
   overflow: hidden;
-  border: 0;
+  border: 1px solid transparent;
+  border-bottom-width: 2px;
   border-radius: var(--radius-s);
-  background: transparent;
   box-shadow: none;
-  color: var(--text-muted);
   font-size: var(--font-ui-smaller);
   font-weight: var(--font-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.tab-cleaner__filter--all {
+  --tab-cleaner-filter-strength: 10%;
+  --tab-cleaner-filter-hover-strength: 16%;
+}
+
 .tab-cleaner__filter--strategy {
   max-width: 7.5rem;
+}
+
+.tab-cleaner__filter.is-pinned {
+  --tab-cleaner-filter-tone: var(--interactive-accent);
+  --tab-cleaner-filter-strength: 12%;
+  --tab-cleaner-filter-hover-strength: 18%;
+  --tab-cleaner-filter-fallback: var(--background-secondary);
+}
+
+.tab-cleaner__filter:hover {
+  --tab-cleaner-filter-strength: var(--tab-cleaner-filter-hover-strength);
+}
+
+.tab-cleaner .tab-cleaner__filter,
+.tab-cleaner .tab-cleaner__filter:hover,
+.tab-cleaner .tab-cleaner__filter.is-active {
+  background: var(--tab-cleaner-filter-fallback);
+  background: color-mix(in srgb, var(--tab-cleaner-filter-tone) var(--tab-cleaner-filter-strength), transparent);
+  color: var(--text-normal);
+}
+
+.tab-cleaner .tab-cleaner__filter.is-active {
+  color: var(--text-accent);
+  border-bottom-color: var(--interactive-accent);
+  font-weight: var(--font-semibold, 600);
+}
+
+.tab-cleaner .tab-cleaner__filter:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.tab-cleaner .tab-cleaner__filter.is-reorderable {
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.tab-cleaner .tab-cleaner__filter.is-dragging {
+  position: relative;
+  z-index: 2;
+  opacity: 0.7;
+  cursor: grabbing;
+}
+
+.tab-cleaner__filter.is-drop-before {
+  box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.tab-cleaner__filter.is-drop-after {
+  box-shadow: inset -2px 0 0 var(--interactive-accent);
 }
 
 .tab-cleaner__filter.is-layout-hidden,
@@ -111,16 +174,6 @@
 .tab-cleaner__filter.is-layout-shrink {
   flex: 1 1 2.5rem;
   max-width: 7.5rem;
-}
-
-.tab-cleaner__filter:hover,
-.tab-cleaner__filter.is-active {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.tab-cleaner__filter.is-active {
-  color: var(--interactive-accent);
 }
 
 .tab-cleaner__section {
@@ -203,9 +256,19 @@
   color: var(--text-faint);
 }
 
-.tab-cleaner__row > input[type="checkbox"] {
+.tab-cleaner__checkbox {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.tab-cleaner__checkbox > input[type="checkbox"] {
   flex: 0 0 auto;
   margin: 0;
+}
+
+.tab-cleaner__checkbox > input[type="checkbox"]:disabled {
+  opacity: 0.5;
 }
 
 .tab-cleaner__list,
@@ -232,10 +295,6 @@
 .tab-cleaner__recent-row:hover,
 .tab-cleaner__batch summary:hover {
   background: var(--background-modifier-hover);
-}
-
-.tab-cleaner__row.is-disabled {
-  opacity: 0.5;
 }
 
 .tab-cleaner__row.is-openable .tab-cleaner__row-info,
@@ -277,7 +336,7 @@
   --icon-stroke: 1.8px;
   display: inline-flex;
   flex: 0 0 auto;
-  color: var(--text-muted);
+  color: var(--text-accent);
 }
 
 .tab-cleaner__current {
@@ -285,7 +344,36 @@
   height: 0.4rem;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--interactive-accent);
+  background: var(--text-accent);
+}
+
+.tab-cleaner__group-pin-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.tab-cleaner__group-order-setting.is-empty {
+  display: none;
+}
+
+.tab-cleaner__save-group-name.is-hidden {
+  display: none;
+}
+
+.tab-cleaner__group-order-button {
+  --icon-size: 14px;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.tab-cleaner__group-order-button:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
 }
 
 .tab-cleaner__type {

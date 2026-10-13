@@ -2,6 +2,13 @@ import { Notice, Plugin, TFile, type WorkspaceLeaf } from "obsidian";
 import { toClosedRecords } from "./closed-records";
 import { getLocale, strings } from "./i18n";
 import { retainedHistory } from "./history-retention";
+import {
+  movePinnedFilter as reorderedPinnedFilters,
+  normalizePinnedFilterIds,
+  normalizeRecentFilterIds,
+  reorderPinnedFilter as reorderPinnedFilters,
+  setFilterPinned as updatePinnedFilterIds,
+} from "./filter-settings";
 import { scanTabs, tabProtectionReason } from "./model";
 import { stateString } from "./tab-state";
 import { TabCleanerSettingTab } from "./settings";
@@ -19,7 +26,8 @@ const DEFAULT_SETTINGS: TabCleanerSettings = {
   pinnedProtection: "always",
   protectActiveTab: true,
   recentBatchLimit: 20,
-  recentStrategyIds: [],
+  recentFilterIds: [],
+  pinnedFilterIds: ["empty", "duplicates"],
   strategies: [],
 };
 
@@ -127,15 +135,27 @@ export default class TabCleanerPlugin extends Plugin {
     return leaf;
   }
 
-  async addStrategy(strategy: CleanerStrategy): Promise<void> {
+  async addStrategy(strategy: CleanerStrategy, pinned = false, pinnedFilterOrder?: string[]): Promise<void> {
     this.settings.strategies.push(strategy);
+    this.settings.pinnedFilterIds = normalizePinnedFilterIds(
+      updatePinnedFilterIds(pinnedFilterOrder ?? this.settings.pinnedFilterIds, strategy.id, pinned),
+      this.settings.strategies.map(({ id }) => id),
+    );
     await this.saveSettings();
   }
 
-  async updateStrategy(strategy: CleanerStrategy): Promise<void> {
+  async updateStrategy(
+    strategy: CleanerStrategy,
+    pinned = this.isFilterPinned(strategy.id),
+    pinnedFilterOrder?: string[],
+  ): Promise<void> {
     const index = this.settings.strategies.findIndex((candidate) => candidate.id === strategy.id);
     if (index === -1) return;
     this.settings.strategies[index] = strategy;
+    this.settings.pinnedFilterIds = normalizePinnedFilterIds(
+      updatePinnedFilterIds(pinnedFilterOrder ?? this.settings.pinnedFilterIds, strategy.id, pinned),
+      this.settings.strategies.map(({ id }) => id),
+    );
     await this.saveSettings();
   }
 
@@ -143,17 +163,52 @@ export default class TabCleanerPlugin extends Plugin {
     this.settings.strategies = this.settings.strategies.filter(
       (candidate) => candidate.id !== strategyId,
     );
-    this.settings.recentStrategyIds = this.settings.recentStrategyIds.filter(
+    this.settings.recentFilterIds = this.settings.recentFilterIds.filter(
       (candidate) => candidate !== strategyId,
+    );
+    this.settings.pinnedFilterIds = updatePinnedFilterIds(
+      this.settings.pinnedFilterIds, strategyId, false,
     );
     await this.saveSettings();
   }
 
-  markStrategyUsed(strategyId: string): void {
-    this.settings.recentStrategyIds = [
-      strategyId,
-      ...this.settings.recentStrategyIds.filter((candidate) => candidate !== strategyId),
-    ].slice(0, 10);
+  isFilterPinned(filterId: string): boolean {
+    return this.settings.pinnedFilterIds.includes(filterId);
+  }
+
+  async setFilterPinned(filterId: string, pinned: boolean): Promise<void> {
+    if (!["empty", "duplicates"].includes(filterId) &&
+      !this.settings.strategies.some(({ id }) => id === filterId)) return;
+    this.settings.pinnedFilterIds = updatePinnedFilterIds(
+      this.settings.pinnedFilterIds, filterId, pinned,
+    );
+    await this.saveSettings();
+  }
+
+  async movePinnedFilter(filterId: string, direction: "up" | "down"): Promise<void> {
+    this.settings.pinnedFilterIds = reorderedPinnedFilters(
+      this.settings.pinnedFilterIds, filterId, direction,
+    );
+    await this.saveSettings();
+  }
+
+  async reorderPinnedFilter(
+    draggedId: string,
+    targetId: string,
+    placement: "before" | "after",
+  ): Promise<void> {
+    const current = this.settings.pinnedFilterIds;
+    const reordered = reorderPinnedFilters(current, draggedId, targetId, placement);
+    if (current.length === reordered.length && current.every((id, index) => id === reordered[index])) return;
+    this.settings.pinnedFilterIds = reordered;
+    await this.saveSettings();
+  }
+
+  markFilterUsed(filterId: string): void {
+    this.settings.recentFilterIds = normalizeRecentFilterIds(
+      [filterId, ...this.settings.recentFilterIds],
+      this.settings.strategies.map(({ id }) => id),
+    );
     void this.saveSettings();
   }
 
@@ -232,15 +287,24 @@ export default class TabCleanerPlugin extends Plugin {
 
   private async loadPluginData(): Promise<void> {
     const data = (await this.loadData()) as Partial<PersistedData> | null;
+    const savedSettings = data?.settings as
+      (Partial<TabCleanerSettings> & { recentStrategyIds?: string[] }) | undefined;
+    const { recentStrategyIds: legacyRecentIds, ...currentSettings } = savedSettings ?? {};
+    const strategies = (currentSettings.strategies ?? []).map((strategy) => ({
+      id: strategy.id,
+      name: strategy.name,
+      query: strategy.query,
+    }));
     this.settings = {
       ...structuredClone(DEFAULT_SETTINGS),
-      ...(data?.settings ?? {}),
-      recentStrategyIds: data?.settings?.recentStrategyIds ?? [],
-      strategies: (data?.settings?.strategies ?? []).map((strategy) => ({
-        id: strategy.id,
-        name: strategy.name,
-        query: strategy.query,
-      })),
+      ...currentSettings,
+      recentFilterIds: normalizeRecentFilterIds(
+        currentSettings.recentFilterIds ?? legacyRecentIds, strategies.map(({ id }) => id),
+      ),
+      pinnedFilterIds: normalizePinnedFilterIds(
+        currentSettings.pinnedFilterIds, strategies.map(({ id }) => id),
+      ),
+      strategies,
     };
     this.recentBatches = retainedHistory(
       Array.isArray(data?.recentBatches) ? data.recentBatches : [],

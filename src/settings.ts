@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import { getLocale, strings } from "./i18n";
+import { filterOrders } from "./filter-order";
 import type TabCleanerPlugin from "./main";
 import type { CleanerStrategy } from "./types";
 import { ConfirmStrategyDeleteModal, StrategyModal } from "./view";
@@ -12,6 +13,7 @@ export class TabCleanerSettingTab extends PluginSettingTab {
   display(): void {
     const text = strings(getLocale());
     const { containerEl } = this;
+    const scrollTop = containerEl.scrollTop;
     containerEl.empty();
 
     new Setting(containerEl).setName(text.tabProtectionSection).setHeading();
@@ -67,20 +69,46 @@ export class TabCleanerSettingTab extends PluginSettingTab {
       .setDesc(text.savedStrategiesDesc)
       .setHeading();
 
+    const groups = new Map<string, { name: string; description: string; strategy?: CleanerStrategy }>([
+      ["empty", { name: text.empty, description: `${text.builtInGroup} · ${text.builtInEmptyDescription}` }],
+      ["duplicates", { name: text.duplicates, description: `${text.builtInGroup} · ${text.builtInDuplicatesDescription}` }],
+    ]);
+    for (const strategy of this.plugin.settings.strategies) {
+      groups.set(strategy.id, {
+        name: strategy.name,
+        description: text.savedSearchDescription(strategy.query),
+        strategy,
+      });
+    }
+    const { displayIds } = filterOrders(
+      ["empty", "duplicates"],
+      this.plugin.settings.strategies.map(({ id }) => id),
+      this.plugin.settings.recentFilterIds,
+      "all",
+      this.plugin.settings.pinnedFilterIds,
+    );
+    for (const id of displayIds) {
+      const group = groups.get(id);
+      if (!group) continue;
+      if (group.strategy) this.renderStrategy(containerEl, group.strategy);
+      else {
+        const setting = new Setting(containerEl).setName(group.name).setDesc(group.description);
+        this.addGroupControls(setting, id, group.name);
+      }
+    }
+
     if (this.plugin.settings.strategies.length === 0) {
       new Setting(containerEl).setDesc(text.noStrategies);
     }
-
-    for (const strategy of this.plugin.settings.strategies) {
-      this.renderStrategy(containerEl, strategy);
-    }
+    containerEl.scrollTop = scrollTop;
   }
 
   private renderStrategy(containerEl: HTMLElement, strategy: CleanerStrategy): void {
     const text = strings(getLocale());
-    new Setting(containerEl)
+    const setting = new Setting(containerEl)
       .setName(strategy.name)
-      .setDesc(text.savedSearchDescription(strategy.query))
+      .setDesc(text.savedSearchDescription(strategy.query));
+    setting
       .addExtraButton((button) =>
         button
           .setIcon("pencil")
@@ -103,5 +131,44 @@ export class TabCleanerSettingTab extends PluginSettingTab {
             }).open();
           }),
       );
+    this.addGroupControls(setting, strategy.id, strategy.name);
+  }
+
+  private addGroupControls(setting: Setting, filterId: string, name: string): void {
+    const text = strings(getLocale());
+    const pinned = this.plugin.isFilterPinned(filterId);
+
+    if (pinned) {
+      const index = this.plugin.settings.pinnedFilterIds.indexOf(filterId);
+      for (const direction of ["up", "down"] as const) {
+        const disabled = direction === "up"
+          ? index === 0
+          : index === this.plugin.settings.pinnedFilterIds.length - 1;
+        if (disabled) continue;
+        const tooltip = direction === "up" ? text.moveGroupUp(name) : text.moveGroupDown(name);
+        setting.addButton((button) => {
+          button.buttonEl.addClass("clickable-icon", "tab-cleaner__group-order-button");
+          button
+            .setIcon(direction === "up" ? "chevron-up" : "chevron-down")
+            .setTooltip(tooltip)
+            .onClick(async () => {
+              await this.plugin.movePinnedFilter(filterId, direction);
+              this.display();
+            });
+        });
+      }
+    }
+
+    setting.controlEl.createSpan({ text: text.groupPin, cls: "tab-cleaner__group-pin-label" });
+    setting.addToggle((toggle) => {
+      toggle.toggleEl.setAttribute("aria-label", text.pinGroup(name));
+      toggle
+        .setValue(pinned)
+        .setTooltip(text.pinGroup(name))
+        .onChange(async (value) => {
+          await this.plugin.setFilterPinned(filterId, value);
+          this.display();
+        });
+    });
   }
 }

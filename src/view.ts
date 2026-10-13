@@ -6,6 +6,7 @@ import {
   Setting,
   setIcon,
   setTooltip,
+  type ButtonComponent,
   type EventRef,
   type WorkspaceLeaf,
 } from "obsidian";
@@ -22,6 +23,9 @@ import {
 import { duplicateDefaultSelectionFlags } from "./duplicate-groups";
 import { filterOrders } from "./filter-order";
 import { tabListLabel } from "./tab-list-label";
+import { tabListStateSignature } from "./tab-list-state";
+import { PinnedFilterDrag } from "./pinned-filter-drag";
+import { movePinnedFilter, setFilterPinned } from "./filter-settings";
 import { extensionFromSource, stateString } from "./tab-state";
 import { SourceEventRegistry } from "./source-event-registry";
 import type { BuiltInFilter, CleanerStrategy, ClosedTabRecord, TabDescriptor } from "./types";
@@ -35,6 +39,9 @@ export class TabCleanerView extends ItemView {
   private filterResizeObserver: ResizeObserver | null = null;
   private webviewerRefreshTimer: number | null = null;
   private webviewerRefreshAttempts = 0;
+  private renderedTabState: string | null = null;
+  private filterDrag: PinnedFilterDrag | null = null;
+  private suppressFilterClick = false;
   private readonly pinnedChangeListeners: SourceEventRegistry<WorkspaceLeaf, EventRef>;
 
   constructor(leaf: WorkspaceLeaf, private readonly plugin: TabCleanerPlugin) {
@@ -58,17 +65,27 @@ export class TabCleanerView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
+    this.registerDomEvent(this.contentEl, "pointerdown", (event) => {
+      if (event.isPrimary !== false) this.suppressFilterClick = false;
+    }, { capture: true });
     this.registerEvent(
       this.app.workspace.on("layout-change", () => {
         this.webviewerRefreshAttempts = 0;
-        this.render();
+        this.renderWorkspaceChanges();
       }),
     );
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.render()));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
+      // Obsidian activates a pane on pointerdown. Replacing its contents here
+      // would remove the target before pointerup/click can reveal the tab.
+      if (leaf === this.leaf) return;
+      this.renderWorkspaceChanges();
+    }));
     this.render();
   }
 
   async onClose(): Promise<void> {
+    this.filterDrag?.destroy();
+    this.filterDrag = null;
     this.filterResizeObserver?.disconnect();
     this.pinnedChangeListeners.clear();
     if (this.webviewerRefreshTimer !== null) window.clearTimeout(this.webviewerRefreshTimer);
@@ -79,14 +96,27 @@ export class TabCleanerView extends ItemView {
     this.render();
   }
 
-  private render(): void {
+  private renderWorkspaceChanges(): void {
+    const tabs = scanTabs(this.app).filter((tab) => tab.viewType !== TAB_CLEANER_VIEW);
+    if (tabListStateSignature(tabs) === this.renderedTabState) {
+      this.schedulePendingWebviewerRefresh(tabs);
+      return;
+    }
+    this.render(tabs);
+  }
+
+  private render(
+    tabs: TabDescriptor[] = scanTabs(this.app).filter((tab) => tab.viewType !== TAB_CLEANER_VIEW),
+  ): void {
+    this.filterDrag?.destroy();
+    this.filterDrag = null;
     this.filterResizeObserver?.disconnect();
     this.filterResizeObserver = null;
     const root = this.contentEl;
     root.empty();
     root.addClass("tab-cleaner");
 
-    const tabs = scanTabs(this.app).filter((tab) => tab.viewType !== TAB_CLEANER_VIEW);
+    this.renderedTabState = tabListStateSignature(tabs);
     this.pinnedChangeListeners.sync(
       tabs.map((tab) => tab.leaf),
       () => this.render(),
@@ -125,7 +155,7 @@ export class TabCleanerView extends ItemView {
     this.webviewerRefreshTimer = window.setTimeout(() => {
       this.webviewerRefreshTimer = null;
       this.webviewerRefreshAttempts += 1;
-      this.render();
+      this.renderWorkspaceChanges();
     }, 250);
   }
 
@@ -219,10 +249,10 @@ export class TabCleanerView extends ItemView {
     const orders = filterOrders(
       builtInEntries.slice(1).map(({ id }) => id),
       strategies.map(({ id }) => id),
-      this.plugin.settings.recentStrategyIds,
+      this.plugin.settings.recentFilterIds,
       this.filter,
+      this.plugin.settings.pinnedFilterIds,
     );
-    let edit: HTMLButtonElement | null = null;
     const strategyButtons = strategies.map((strategy) => {
       const count = tabs.filter((tab) => matchesStrategy(tab, strategy)).length;
       const button = this.addFilterButton(
@@ -231,23 +261,6 @@ export class TabCleanerView extends ItemView {
         `${strategy.name} (${count})`,
         text.filterCount(strategy.name, count),
       );
-      button.addClass("tab-cleaner__filter--strategy");
-      if (strategy.id === activeStrategy?.id) {
-        edit = filters.createEl("button", {
-          cls: "clickable-icon tab-cleaner__filter-edit",
-          attr: { "aria-label": text.manageStrategy(strategy.name) },
-        });
-        setIcon(edit, "settings-2");
-        edit.addEventListener("click", () => {
-          new StrategyModal(this.plugin, {
-            strategy,
-            onChanged: (strategyId) => {
-              if (strategyId === null) this.filter = "all";
-              this.render();
-            },
-          }).open();
-        });
-      }
       return { strategy, button, menuTitle: `${strategy.name} (${count})` };
     });
 
@@ -265,6 +278,36 @@ export class TabCleanerView extends ItemView {
     const optionalEntries = orders.displayIds
       .map((id) => optionalEntryById.get(id))
       .filter((entry): entry is (typeof allOptionalEntries)[number] => entry !== undefined);
+
+    let edit: HTMLButtonElement | null = null;
+    const activeBuiltIn = builtIns.find(({ id }) => id !== "all" && id === this.filter);
+    const activeGroupName = activeStrategy?.name ?? activeBuiltIn?.label;
+    if (activeGroupName) {
+      edit = filters.createEl("button", {
+        cls: "clickable-icon tab-cleaner__filter-edit",
+        attr: { "aria-label": text.manageStrategy(activeGroupName) },
+      });
+      setIcon(edit, "settings-2");
+      setTooltip(edit, text.manageStrategy(activeGroupName));
+      edit.addEventListener("click", () => {
+        if (activeStrategy) {
+          new StrategyModal(this.plugin, {
+            strategy: activeStrategy,
+            onChanged: (strategyId) => {
+              if (strategyId === null) this.filter = "all";
+              this.render();
+            },
+          }).open();
+        } else if (activeBuiltIn) {
+          new BuiltInGroupModal(this.plugin, activeBuiltIn.id, activeBuiltIn.label).open();
+        }
+      });
+    }
+
+    for (const { id, button } of optionalEntries) {
+      filters.appendChild(button);
+      if (id === this.filter && edit) filters.appendChild(edit);
+    }
 
     const more = filters.createEl("button", {
       cls: "clickable-icon tab-cleaner__more-filters",
@@ -285,6 +328,14 @@ export class TabCleanerView extends ItemView {
       menu.showAtMouseEvent(event);
     });
 
+    this.filterDrag = new PinnedFilterDrag({
+      entries: optionalEntries.map(({ id, button }) => ({ id, button })),
+      isPinned: (id) => this.plugin.isFilterPinned(id),
+      onDragStart: () => { this.suppressFilterClick = true; },
+      onReorder: (draggedId, targetId, placement) =>
+        this.plugin.reorderPinnedFilter(draggedId, targetId, placement),
+    });
+
     this.installAdaptiveFilterLayout(
       filters,
       allButton,
@@ -302,12 +353,26 @@ export class TabCleanerView extends ItemView {
     label: string,
     tooltip: string,
   ): HTMLButtonElement {
+    const groupClass = id === "all"
+      ? "tab-cleaner__filter--all"
+      : id === "empty" || id === "duplicates"
+        ? ""
+        : "tab-cleaner__filter--strategy";
     const button = parent.createEl("button", {
       text: label,
-      cls: this.filter === id ? "tab-cleaner__filter is-active" : "tab-cleaner__filter",
-      attr: { title: tooltip },
+      cls: `tab-cleaner__filter ${groupClass}${this.filter === id ? " is-active" : ""}`,
+      attr: { title: tooltip, "aria-pressed": String(this.filter === id) },
     });
-    button.addEventListener("click", () => this.activateFilter(id));
+    button.toggleClass("is-pinned", id !== "all" && this.plugin.isFilterPinned(id));
+    button.setAttribute("data-filter-id", id);
+    button.addEventListener("click", (event) => {
+      if (this.suppressFilterClick && event.detail !== 0) {
+        this.suppressFilterClick = false;
+        event.preventDefault();
+        return;
+      }
+      this.activateFilter(id);
+    });
     return button;
   }
 
@@ -342,6 +407,7 @@ export class TabCleanerView extends ItemView {
         const fixedWidths = [allWidth, ...(edit ? [editWidth] : [])];
         if (totalWidth([...fixedWidths, ...optionalWidths]) <= filters.clientWidth) {
           more.addClass("is-layout-hidden");
+          this.filterDrag?.updateAvailability();
           return;
         }
 
@@ -377,6 +443,7 @@ export class TabCleanerView extends ItemView {
           button.hasClass("is-layout-hidden"),
         );
         more.toggleClass("is-layout-hidden", !hasHidden);
+        this.filterDrag?.updateAvailability();
       };
 
       layout();
@@ -393,9 +460,7 @@ export class TabCleanerView extends ItemView {
       scanTabs(this.app).filter((tab) => tab.viewType !== TAB_CLEANER_VIEW),
     );
     this.selectFilterDefaults(tabs, id);
-    if (!(["all", "empty", "duplicates"] as string[]).includes(id)) {
-      this.plugin.markStrategyUsed(id);
-    }
+    if (id !== "all") this.plugin.markFilterUsed(id);
     this.render();
   }
 
@@ -434,17 +499,18 @@ export class TabCleanerView extends ItemView {
 
     const headingActions = heading.createDiv({ cls: "tab-cleaner__heading-actions" });
     const pinnedProtected = this.plugin.settings.pinnedProtection === "always";
+    const pinnedTooltip = text.pinnedProtectionAction(pinnedProtected);
     const pinnedButton = headingActions.createEl("button", {
       cls: pinnedProtected
         ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle is-active"
         : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle",
       attr: {
-        "aria-label": pinnedProtected ? text.pinnedProtected : text.pinnedSelectable,
+        "aria-label": pinnedTooltip,
         "aria-pressed": String(pinnedProtected),
       },
     });
     setIcon(pinnedButton, pinnedProtected ? "pin" : "pin-off");
-    setTooltip(pinnedButton, pinnedProtected ? text.pinnedProtected : text.pinnedSelectable);
+    setTooltip(pinnedButton, pinnedTooltip, { placement: "top", delay: 200 });
     pinnedButton.addEventListener("click", () => {
       this.plugin.settings.pinnedProtection = pinnedProtected ? "manual" : "always";
       this.selected = new Set(
@@ -453,6 +519,24 @@ export class TabCleanerView extends ItemView {
           return tab && !tabProtectionReason(tab, this.plugin.settings);
         }),
       );
+      void this.plugin.saveSettings();
+    });
+
+    const activeProtected = this.plugin.settings.protectActiveTab;
+    const activeTooltip = text.activeProtectionAction(activeProtected);
+    const activeButton = headingActions.createEl("button", {
+      cls: activeProtected
+        ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle is-active"
+        : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle",
+      attr: {
+        "aria-label": activeTooltip,
+        "aria-pressed": String(activeProtected),
+      },
+    });
+    setIcon(activeButton, "crosshair");
+    setTooltip(activeButton, activeTooltip, { placement: "top", delay: 200 });
+    activeButton.addEventListener("click", () => {
+      this.plugin.settings.protectActiveTab = !activeProtected;
       void this.plugin.saveSettings();
     });
 
@@ -496,19 +580,24 @@ export class TabCleanerView extends ItemView {
     const text = strings(getLocale());
     const reason = tabProtectionReason(tab, this.plugin.settings);
     const row = list.createDiv({
-      cls: reason ? "tab-cleaner__row is-disabled is-openable" : "tab-cleaner__row is-openable",
+      cls: "tab-cleaner__row is-openable",
     });
+
+    const checkboxContainer = row.createSpan({ cls: "tab-cleaner__checkbox" });
+    const checkbox = checkboxContainer.createEl("input", { type: "checkbox" });
     if (reason) {
       const reasonText =
         reason === "pinned"
-          ? text.pinned
+          ? text.pinnedSelectionProtected
           : reason === "active"
-            ? text.activeProtected
+            ? text.activeSelectionProtected
             : text.cannotRestore;
-      row.setAttribute("title", reasonText);
+      setTooltip(checkboxContainer, reasonText);
+      checkbox.setAttribute("aria-label", reasonText);
+    } else {
+      checkbox.setAttribute("aria-label", tab.title);
     }
 
-    const checkbox = row.createEl("input", { type: "checkbox" });
     checkbox.checked = this.selected.has(tab.id);
     checkbox.disabled = reason !== null;
     checkbox.addEventListener("click", (event) => event.stopPropagation());
@@ -532,16 +621,17 @@ export class TabCleanerView extends ItemView {
     const title = info.createDiv({ cls: "tab-cleaner__row-title" });
     this.addTypeBadge(title, tab.extension || (tab.viewType === "webviewer" ? "web" : ""));
     title.createSpan({ text: tab.title, cls: "tab-cleaner__row-name" });
-    if (tab.isActive && this.plugin.settings.protectActiveTab) {
-      const current = title.createSpan({
-        cls: "tab-cleaner__current",
-        attr: { "aria-label": text.activeProtected },
-      });
-      setTooltip(current, text.activeProtected);
-    }
     if (tab.isPinned) {
       const pin = title.createSpan({ cls: "tab-cleaner__pin", attr: { "aria-label": text.pinned } });
       setIcon(pin, "pin");
+      setTooltip(pin, text.pinned);
+    }
+    if (tab.isActive) {
+      const current = title.createSpan({
+        cls: "tab-cleaner__current",
+        attr: { "aria-label": text.activeTab },
+      });
+      setTooltip(current, text.activeTab);
     }
     const subtitleText = tab.path ? this.parentPath(tab.path) : tab.url;
     if (subtitleText) {
@@ -726,9 +816,82 @@ interface StrategyModalOptions {
   onChanged: (strategyId: string | null) => void;
 }
 
+function renderGroupOrderControls(
+  setting: Setting,
+  groupId: string,
+  pinnedIds: string[],
+  groupName: string,
+  onMove: (direction: "up" | "down") => void | Promise<void>,
+): void {
+  const text = strings(getLocale());
+  setting.clear();
+  const index = pinnedIds.indexOf(groupId);
+  setting.settingEl.addClass("tab-cleaner__group-order-setting");
+  setting.settingEl.toggleClass("is-empty", index < 0 || pinnedIds.length < 2);
+  if (index < 0 || pinnedIds.length < 2) return;
+  for (const direction of ["up", "down"] as const) {
+    if (direction === "up" ? index === 0 : index === pinnedIds.length - 1) continue;
+    setting.addButton((button) => {
+      button.buttonEl.addClass("clickable-icon", "tab-cleaner__group-order-button");
+      button
+        .setIcon(direction === "up" ? "chevron-up" : "chevron-down")
+        .setTooltip(direction === "up" ? text.moveGroupUp(groupName) : text.moveGroupDown(groupName))
+        .onClick(() => onMove(direction));
+    });
+  }
+}
+
+class BuiltInGroupModal extends Modal {
+  constructor(
+    private readonly plugin: TabCleanerPlugin,
+    private readonly filterId: string,
+    private readonly name: string,
+  ) {
+    super(plugin.app);
+  }
+
+  onOpen(): void {
+    const text = strings(getLocale());
+    this.contentEl.createEl("h2", { text: text.manageStrategy(this.name) });
+    new Setting(this.contentEl)
+      .setName(text.builtInGroup)
+      .setDesc(this.filterId === "empty"
+        ? text.builtInEmptyDescription
+        : text.builtInDuplicatesDescription);
+    const pinSetting = new Setting(this.contentEl).setName(text.groupPin).setDesc(text.groupPinDesc);
+    const orderSetting = new Setting(this.contentEl).setName(text.groupOrder);
+    const refreshOrder = (): void => renderGroupOrderControls(
+      orderSetting,
+      this.filterId,
+      this.plugin.settings.pinnedFilterIds,
+      this.name,
+      async (direction) => {
+        await this.plugin.movePinnedFilter(this.filterId, direction);
+        refreshOrder();
+      },
+    );
+    refreshOrder();
+    pinSetting.addToggle((toggle) =>
+      toggle.setValue(this.plugin.isFilterPinned(this.filterId)).onChange(async (pinned) => {
+        await this.plugin.setFilterPinned(this.filterId, pinned);
+        refreshOrder();
+      }),
+    );
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
 export class StrategyModal extends Modal {
   private name: string;
+  private savedName: string;
+  private savingName = false;
   private query: string;
+  private pinned: boolean;
+  private readonly strategyId: string;
+  private pinnedFilterOrder: string[];
 
   constructor(
     private readonly plugin: TabCleanerPlugin,
@@ -736,7 +899,11 @@ export class StrategyModal extends Modal {
   ) {
     super(plugin.app);
     this.name = options.strategy?.name ?? options.query?.trim() ?? "";
+    this.savedName = this.name;
     this.query = options.strategy?.query ?? options.query ?? "";
+    this.pinned = options.strategy ? this.plugin.isFilterPinned(options.strategy.id) : false;
+    this.strategyId = options.strategy?.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.pinnedFilterOrder = [...this.plugin.settings.pinnedFilterIds];
   }
 
   onOpen(): void {
@@ -746,24 +913,93 @@ export class StrategyModal extends Modal {
     });
     const searchSetting = new Setting(this.contentEl).setName(text.search);
     searchSetting.setDesc(this.query);
-    new Setting(this.contentEl).setName(text.strategyName).addText((input) =>
+    const nameSetting = new Setting(this.contentEl).setName(text.strategyName);
+    let nameSaveButton: ButtonComponent | null = null;
+    const refreshNameSave = (): void => {
+      if (!nameSaveButton) return;
+      const changed = this.name !== this.savedName;
+      nameSaveButton.buttonEl.toggleClass("is-hidden", !changed);
+      nameSaveButton.setDisabled(this.savingName || !this.name || !changed);
+    };
+    nameSetting.addText((input) =>
       input
         .setPlaceholder(text.strategyNamePlaceholder)
         .setValue(this.name)
         .onChange((value) => {
           this.name = value.trim();
+          refreshNameSave();
         }),
     );
+    const pinSetting = new Setting(this.contentEl).setName(text.groupPin).setDesc(text.groupPinDesc);
+    const orderSetting = new Setting(this.contentEl).setName(text.groupOrder);
+    if (!this.options.strategy) orderSetting.setDesc(text.groupOrderDraftDesc);
+    const refreshOrder = (): void => renderGroupOrderControls(
+      orderSetting,
+      this.strategyId,
+      this.options.strategy ? this.plugin.settings.pinnedFilterIds : this.pinnedFilterOrder,
+      this.options.strategy ? this.savedName : this.name,
+      async (direction) => {
+        if (this.options.strategy) {
+          await this.plugin.movePinnedFilter(this.strategyId, direction);
+          this.options.onChanged(this.strategyId);
+        } else {
+          this.pinnedFilterOrder = movePinnedFilter(this.pinnedFilterOrder, this.strategyId, direction);
+        }
+        refreshOrder();
+      },
+    );
+    refreshOrder();
+    pinSetting.addToggle((toggle) =>
+      toggle.setValue(this.pinned).onChange(async (pinned) => {
+        this.pinned = pinned;
+        if (this.options.strategy) {
+          await this.plugin.setFilterPinned(this.strategyId, pinned);
+          this.options.onChanged(this.strategyId);
+        } else {
+          this.pinnedFilterOrder = setFilterPinned(this.pinnedFilterOrder, this.strategyId, pinned);
+        }
+        refreshOrder();
+      }),
+    );
+    if (this.options.strategy) {
+      nameSetting.addButton((button) => {
+        nameSaveButton = button;
+        button.buttonEl.addClass("clickable-icon", "tab-cleaner__save-group-name");
+        button.buttonEl.setAttribute("aria-label", text.saveStrategyName);
+        button.setIcon("check").setTooltip(text.saveStrategyName).onClick(async () => {
+          if (this.savingName || !this.name || this.name === this.savedName) return;
+          const strategy = this.plugin.settings.strategies.find(({ id }) => id === this.strategyId);
+          if (!strategy) return;
+          const name = this.name;
+          this.savingName = true;
+          refreshNameSave();
+          try {
+            await this.plugin.updateStrategy({ ...strategy, name });
+            this.savedName = name;
+            this.options.onChanged(this.strategyId);
+            refreshOrder();
+          } finally {
+            this.savingName = false;
+            refreshNameSave();
+          }
+        });
+        refreshNameSave();
+      });
+    }
     const actions = new Setting(this.contentEl);
-    actions.addButton((button) => button.setButtonText(text.cancel).onClick(() => this.close()));
     if (this.options.strategy) {
       actions.addButton((button) =>
         button
           .setButtonText(text.deleteStrategy)
           .setWarning()
-          .onClick(() => this.confirmDelete(this.options.strategy!)),
+          .onClick(() => {
+            const strategy = this.plugin.settings.strategies.find(({ id }) => id === this.strategyId);
+            if (strategy) this.confirmDelete(strategy);
+          }),
       );
+      return;
     }
+    actions.addButton((button) => button.setButtonText(text.cancel).onClick(() => this.close()));
     actions.addButton((button) =>
       button.setButtonText(text.save).setCta().onClick(async () => {
         if (!this.name || !this.query) {
@@ -771,14 +1007,11 @@ export class StrategyModal extends Modal {
           return;
         }
         const strategy: CleanerStrategy = {
-          id:
-            this.options.strategy?.id ??
-            `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: this.strategyId,
           name: this.name,
           query: this.options.strategy?.query ?? this.query,
         };
-        if (this.options.strategy) await this.plugin.updateStrategy(strategy);
-        else await this.plugin.addStrategy(strategy);
+        await this.plugin.addStrategy(strategy, this.pinned, this.pinnedFilterOrder);
         this.close();
         this.options.onChanged(strategy.id);
       }),

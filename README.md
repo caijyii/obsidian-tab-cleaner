@@ -9,10 +9,10 @@ Tab Cleaner is a visual workspace for reviewing and safely closing groups of Obs
 ## Features
 
 - Visual list of tabs in the main workspace
-- Built-in filters for empty and duplicate tabs
+- Built-in Empty and Duplicates search groups that can be unpinned
 - Search by path, file name, extension, or view type
-- Reusable search groups that can be edited or removed
-- Pinned-tab protection available directly in the cleaner panel
+- Reusable search groups that can be pinned, edited, or removed
+- Quick toggles for pinned-tab and active-tab protection in the cleaner panel
 - Active-tab protection by default
 - Recently closed cleanup batches with one-click reopening
 - Simplified Chinese and English interfaces based on the Obsidian language
@@ -61,14 +61,20 @@ Restart Obsidian or reload plugins, then enable **Tab Cleaner** under Settings â
 
 Open the ribbon brush icon or run **Tab Cleaner: Open panel** from the command palette.
 
-1. Choose All, Empty, Duplicates, a saved search group, or enter a search.
-2. Choose whether pinned tabs can be selected, then select visible tabs or adjust them individually.
+1. Choose All, Empty, Duplicates, a custom search group, or enter a search.
+2. Use the protection toggles above the tab list to choose whether pinned and active tabs can be selected, then select visible tabs or adjust them individually.
 3. Choose **Close selected**.
 4. Reopen tabs later from **Recently closed** if needed.
 
 Recently closed consolidates repeated instances of the same file, URL, or empty-tab type into an `Ã—N` record. The count describes how many tabs were closed; reopening restores one tab per record.
 
 To create a reusable search group, search for a stable path, file name, extension, or view type, then choose the save icon. Edit or delete saved groups from the pencil beside an active filter or from the plugin settings.
+
+Empty and Duplicates are built-in search groups pinned to top by default. Use the pin toggles in the plugin settings for built-in and custom groups. Only available up and down buttons are shown: the first has no up button, the last has no down button, and a single pinned group has no ordering buttons. Unpinned groups follow recent usage, including built-in groups. All groups remain visible when the panel is wide enough. When space is limited, the current group and pinned groups take priority; additional groups are available through More search groups.
+
+Colors distinguish All, pinned groups, and unpinned groups: All uses a slightly stronger neutral tint, pinned groups use a subtle accent tint, and unpinned groups use a subtle neutral tint, whether built-in or custom. Selected groups share the theme's accent text color, an underline, and slightly heavier text while retaining their own light background, keeping pin status recognizable. Drag pinned groups horizontally to reorder them without switching the active group. The management dialog also provides up and down buttons, including for groups hidden in the panel. Pinning and order changes for existing groups save immediately. After editing a custom group's name, choose the check icon beside the name to save it. Closing the dialog discards only an unconfirmed name. New groups still require Save to create them.
+
+Protection disables only a tab's checkbox. Click its name or details to reveal it in the workspace. The pinned icon and active-tab marker use the theme accent color. The active marker appears to the right of the pinned icon and remains visible whether active-tab protection is enabled or disabled.
 
 ## Safety and privacy
 

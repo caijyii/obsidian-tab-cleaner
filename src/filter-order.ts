@@ -10,16 +10,20 @@ function unique(ids: string[]): string[] {
 export function filterOrders(
   builtInIds: string[],
   strategyIds: string[],
-  recentStrategyIds: string[],
+  recentFilterIds: string[],
   activeFilterId: string,
+  pinnedFilterIds: string[],
 ): FilterOrders {
-  const displayIds = unique([...builtInIds, ...strategyIds]);
-  const displaySet = new Set(displayIds);
+  const displaySet = new Set([...builtInIds, ...strategyIds].filter((id) => id !== "all"));
+  const pinnedIds = unique(pinnedFilterIds).filter((id) => displaySet.has(id));
+  const pinnedSet = new Set(pinnedIds);
+  const unpinnedIds = unique([...recentFilterIds, ...builtInIds, ...strategyIds])
+    .filter((id) => displaySet.has(id) && !pinnedSet.has(id));
+  const displayIds = [...pinnedIds, ...unpinnedIds];
   const priorityIds = unique([
     activeFilterId,
-    ...builtInIds,
-    ...recentStrategyIds,
-    ...strategyIds,
+    ...pinnedIds,
+    ...displayIds,
   ]).filter((id) => displaySet.has(id));
 
   return { displayIds, priorityIds };

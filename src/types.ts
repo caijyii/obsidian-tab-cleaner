@@ -12,7 +12,8 @@ export interface TabCleanerSettings {
   pinnedProtection: PinnedProtection;
   protectActiveTab: boolean;
   recentBatchLimit: number;
-  recentStrategyIds: string[];
+  recentFilterIds: string[];
+  pinnedFilterIds: string[];
   strategies: CleanerStrategy[];
 }
 
