@@ -42,6 +42,7 @@ export class TabCleanerView extends ItemView {
   private renderedTabState: string | null = null;
   private filterDrag: PinnedFilterDrag | null = null;
   private suppressFilterClick = false;
+  private protectionControlsRevealed = false;
   private readonly pinnedChangeListeners: SourceEventRegistry<WorkspaceLeaf, EventRef>;
 
   constructor(leaf: WorkspaceLeaf, private readonly plugin: TabCleanerPlugin) {
@@ -84,6 +85,7 @@ export class TabCleanerView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.protectionControlsRevealed = false;
     this.filterDrag?.destroy();
     this.filterDrag = null;
     this.filterResizeObserver?.disconnect();
@@ -113,6 +115,10 @@ export class TabCleanerView extends ItemView {
     this.filterResizeObserver?.disconnect();
     this.filterResizeObserver = null;
     const root = this.contentEl;
+    const focusedControl = root.ownerDocument.activeElement;
+    const focusedControlId = focusedControl && root.contains(focusedControl) && focusedControl.matches(":focus-visible")
+      ? focusedControl.getAttribute("data-tab-cleaner-control")
+      : null;
     root.empty();
     root.addClass("tab-cleaner");
 
@@ -135,6 +141,9 @@ export class TabCleanerView extends ItemView {
     this.renderFilters(root, tabs);
     this.renderTabList(root, filtered);
     this.renderRecent(root);
+    if (focusedControlId === "pinned" || focusedControlId === "active" || focusedControlId === "select-all") {
+      root.querySelector<HTMLElement>(`[data-tab-cleaner-control="${focusedControlId}"]`)?.focus({ preventScroll: true });
+    }
   }
 
   private schedulePendingWebviewerRefresh(tabs: TabDescriptor[]): void {
@@ -211,6 +220,7 @@ export class TabCleanerView extends ItemView {
   }
 
   private applySearchQuery(value: string): void {
+    this.protectionControlsRevealed = false;
     this.query = value;
     this.filter = "all";
     this.selected.clear();
@@ -423,6 +433,7 @@ export class TabCleanerView extends ItemView {
   }
 
   private activateFilter(id: string): void {
+    this.protectionControlsRevealed = false;
     this.filter = id;
     this.query = "";
     this.selected.clear();
@@ -470,15 +481,25 @@ export class TabCleanerView extends ItemView {
     this.addGroupManagementButton(title);
 
     const headingActions = heading.createDiv({ cls: "tab-cleaner__heading-actions" });
+    const selectionControls = headingActions.createDiv({ cls: "tab-cleaner__selection-controls" });
+    selectionControls.toggleClass("is-revealed", this.protectionControlsRevealed);
+    selectionControls.addEventListener("pointerleave", () => {
+      // A render can detach the previous controls while the pointer stays here.
+      if (!selectionControls.isConnected) return;
+      this.protectionControlsRevealed = false;
+      selectionControls.removeClass("is-revealed");
+    });
+    const protectionControls = selectionControls.createDiv({ cls: "tab-cleaner__protection-controls" });
     const pinnedProtected = this.plugin.settings.pinnedProtection === "always";
     const pinnedTooltip = text.pinnedProtectionAction(pinnedProtected);
-    const pinnedButton = headingActions.createEl("button", {
+    const pinnedButton = protectionControls.createEl("button", {
       cls: pinnedProtected
         ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle is-active"
         : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle",
       attr: {
         "aria-label": pinnedTooltip,
         "aria-pressed": String(pinnedProtected),
+        "data-tab-cleaner-control": "pinned",
       },
     });
     setIcon(pinnedButton, pinnedProtected ? "pin" : "pin-off");
@@ -496,13 +517,14 @@ export class TabCleanerView extends ItemView {
 
     const activeProtected = this.plugin.settings.protectActiveTab;
     const activeTooltip = text.activeProtectionAction(activeProtected);
-    const activeButton = headingActions.createEl("button", {
+    const activeButton = protectionControls.createEl("button", {
       cls: activeProtected
         ? "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle is-active"
         : "clickable-icon tab-cleaner__heading-icon tab-cleaner__heading-toggle tab-cleaner__protection-toggle",
       attr: {
         "aria-label": activeTooltip,
         "aria-pressed": String(activeProtected),
+        "data-tab-cleaner-control": "active",
       },
     });
     setIcon(activeButton, "crosshair");
@@ -515,7 +537,13 @@ export class TabCleanerView extends ItemView {
       void this.plugin.saveSettings();
     });
 
-    const selectVisible = headingActions.createEl("button", {
+    const selectControl = selectionControls.createDiv({ cls: "tab-cleaner__select-control" });
+    selectControl.addEventListener("pointerenter", () => {
+      if (!selectControl.isConnected) return;
+      this.protectionControlsRevealed = true;
+      selectionControls.addClass("is-revealed");
+    });
+    const selectVisible = selectControl.createEl("button", {
       text: text.selectAll,
       cls: allSelected
         ? "tab-cleaner__select-all tab-cleaner__heading-toggle is-active"
@@ -523,6 +551,7 @@ export class TabCleanerView extends ItemView {
       attr: {
         "aria-label": allSelected ? text.deselectVisible : text.selectVisible,
         "aria-pressed": String(allSelected),
+        "data-tab-cleaner-control": "select-all",
       },
     });
     setTooltip(selectVisible, allSelected ? text.deselectVisible : text.selectVisible);

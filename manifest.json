@@ -1,7 +1,7 @@
 {
   "id": "tab-cleaner",
   "name": "Tab Cleaner",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "minAppVersion": "1.8.7",
   "description": "Visually find, review, and safely close groups of tabs.",
   "author": "caijyii",

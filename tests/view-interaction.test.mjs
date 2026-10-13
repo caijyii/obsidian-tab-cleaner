@@ -83,6 +83,7 @@ class FakeElement {
   }
 
   empty() {
+    if (this.contains(this.ownerDocument.activeElement)) this.ownerDocument.activeElement = null;
     for (const child of this.children) child.parentNode = null;
     this.children = [];
   }
@@ -156,8 +157,10 @@ class FakeElement {
   }
 
   querySelector(selector) {
-    if (selector === 'input[type="search"]' || selector === "svg") {
+    const controlId = selector.match(/^\[data-tab-cleaner-control="([\w-]+)"\]$/)?.[1];
+    if (selector === 'input[type="search"]' || selector === "svg" || controlId) {
       const find = (element) => {
+        if (controlId && element.getAttribute("data-tab-cleaner-control") === controlId) return element;
         if (selector === "svg" && element.tagName === "svg") return element;
         if (selector === 'input[type="search"]' && element.tagName === "input" && element.type === "search") return element;
         for (const child of element.children) {
@@ -171,7 +174,15 @@ class FakeElement {
     throw new Error(`Unsupported fixture selector: ${selector}`);
   }
 
-  focus() {}
+  contains(element) {
+    for (let current = element; current; current = current.parentNode) if (current === this) return true;
+    return false;
+  }
+  matches(selector) {
+    if (selector === ":focus-visible") return this.ownerDocument.activeElement === this && this.ownerDocument.keyboardFocusVisible === true;
+    throw new Error(`Unsupported fixture match: ${selector}`);
+  }
+  focus() { this.ownerDocument.activeElement = this; }
   setSelectionRange() {}
 }
 
@@ -459,6 +470,118 @@ test("keeps protection buttons connected when layout events contain no tab chang
 
   assert.equal(buttons.every((button) => button.isConnected), true);
   assert.deepEqual(root.findAll("tab-cleaner__heading-icon"), buttons);
+});
+
+function selectionControls(root) {
+  const controls = root.findAll("tab-cleaner__selection-controls")[0];
+  assert.ok(controls, "expected selection and protection controls to share a wrapper");
+  return controls;
+}
+
+test("keyboard protection toggles retain focus across settings and workspace redraws", async () => {
+  const { root, view } = await fixture();
+  const document = root.ownerDocument;
+  document.keyboardFocusVisible = true;
+  for (const index of [0, 1]) {
+    const button = root.findAll("tab-cleaner__protection-toggle")[index];
+    button.focus();
+    button.fire("click", { detail: 0 });
+    const currentButton = root.findAll("tab-cleaner__protection-toggle")[index];
+    assert.notEqual(currentButton, button);
+    assert.equal(document.activeElement, currentButton);
+    assert.equal(currentButton.getAttribute("aria-pressed"), "false");
+    view.refresh();
+    assert.equal(document.activeElement, root.findAll("tab-cleaner__protection-toggle")[index]);
+  }
+});
+
+test("keyboard Select all keeps focus after selecting and deselecting tabs", async () => {
+  const { root } = await fixture();
+  const document = root.ownerDocument;
+  document.keyboardFocusVisible = true;
+  root.findAll("tab-cleaner__select-all")[0].focus();
+  for (const expected of ["true", "false"]) {
+    const oldButton = root.findAll("tab-cleaner__select-all")[0];
+    oldButton.fire("click", { detail: 0 });
+    const currentButton = root.findAll("tab-cleaner__select-all")[0];
+    assert.notEqual(currentButton, oldButton);
+    assert.equal(currentButton.getAttribute("aria-pressed"), expected);
+    assert.equal(document.activeElement, currentButton);
+  }
+});
+
+test("only entering Select all reveals protection controls until the selection region is left", async () => {
+  const { root, view } = await fixture();
+  const controls = selectionControls(root);
+  const protectionControls = controls.findAll("tab-cleaner__protection-controls")[0];
+  const selectControl = controls.findAll("tab-cleaner__select-control")[0];
+  assert.equal(controls.hasClass("is-revealed"), false);
+  assert.equal(protectionControls.findAll("tab-cleaner__protection-toggle").length, 2);
+  assert.equal(controls.findAll("tab-cleaner__close-selected").length, 0);
+  protectionControls.fire("pointerenter");
+  protectionControls.findAll("tab-cleaner__protection-toggle")[0].fire("pointerenter");
+  root.findAll("tab-cleaner__close-selected")[0].fire("pointerenter");
+  assert.equal(controls.hasClass("is-revealed"), false);
+
+  selectControl.fire("pointerenter");
+  assert.equal(controls.hasClass("is-revealed"), true);
+  protectionControls.findAll("tab-cleaner__protection-toggle")[1].fire("pointerenter");
+  controls.fire("pointerenter");
+  assert.equal(controls.hasClass("is-revealed"), true);
+  controls.fire("pointerleave");
+  assert.equal(controls.hasClass("is-revealed"), false);
+  view.refresh();
+  assert.equal(selectionControls(root).hasClass("is-revealed"), false);
+});
+
+test("revealed protection controls survive toggle and Select all rebuilds while stale leave events are ignored", async () => {
+  const { root, view, plugin } = await fixture();
+  const originalControls = selectionControls(root);
+  originalControls.findAll("tab-cleaner__select-control")[0].fire("pointerenter");
+  for (const index of [0, 1]) {
+    root.findAll("tab-cleaner__protection-toggle")[index].fire("click");
+    assert.equal(selectionControls(root).hasClass("is-revealed"), true);
+  }
+  assert.equal(plugin.settings.pinnedProtection, "manual");
+  assert.equal(plugin.settings.protectActiveTab, false);
+  assert.equal(originalControls.isConnected, false);
+  originalControls.fire("pointerleave");
+  assert.equal(selectionControls(root).hasClass("is-revealed"), true);
+  view.refresh();
+  assert.equal(selectionControls(root).hasClass("is-revealed"), true);
+
+  root.findAll("tab-cleaner__select-all")[0].fire("click");
+  assert.equal(selectionControls(root).hasClass("is-revealed"), true);
+  assert.equal(root.findAll("tab-cleaner__row").every((row) => row.findAll("tab-cleaner__checkbox")[0].children[0].checked), true);
+  selectionControls(root).fire("pointerleave");
+  view.refresh();
+  assert.equal(selectionControls(root).hasClass("is-revealed"), false);
+});
+
+test("checkbox selection tracks Select all changes and clears when a tab becomes protected", async () => {
+  const { root, otherLeaf } = await fixture();
+  const rows = () => root.findAll("tab-cleaner__row");
+  const checkbox = (row) => row.findAll("tab-cleaner__checkbox")[0].children[0];
+  const assertStates = (expected) => {
+    assert.deepEqual(rows().map((row) => checkbox(row).checked), expected);
+  };
+  assertStates([false, false]);
+  assert.equal(checkbox(rows()[0]).disabled, true);
+  checkbox(rows()[1]).checked = true;
+  checkbox(rows()[1]).fire("change");
+  assertStates([false, true]);
+  checkbox(rows()[1]).checked = false;
+  checkbox(rows()[1]).fire("change");
+  assertStates([false, false]);
+  root.findAll("tab-cleaner__select-all")[0].fire("click");
+  assertStates([false, true]);
+  root.findAll("tab-cleaner__select-all")[0].fire("click");
+  assertStates([false, false]);
+  root.findAll("tab-cleaner__select-all")[0].fire("click");
+  otherLeaf.state.pinned = true;
+  otherLeaf.trigger("pinned-change");
+  assertStates([false, false]);
+  assert.equal(checkbox(rows()[1]).disabled, true);
 });
 
 test("updates the current-tab marker when the active content leaf changes", async () => {
