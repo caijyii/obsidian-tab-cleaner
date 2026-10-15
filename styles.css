@@ -170,7 +170,6 @@
 }
 
 .tab-cleaner .tab-cleaner__filter.is-reorderable {
-  cursor: grab;
   touch-action: pan-y;
   user-select: none;
 }
@@ -389,6 +388,7 @@
   background: var(--tc-interactive-background);
 }
 
+.tab-cleaner__select-all:disabled,
 .tab-cleaner__close-selected:disabled {
   color: var(--text-faint);
 }
@@ -452,7 +452,7 @@
 
 .tab-cleaner__row.is-openable .tab-cleaner__row-info,
 .tab-cleaner__recent-row.is-openable .tab-cleaner__row-info {
-  cursor: pointer;
+  cursor: var(--cursor, default);
 }
 
 .tab-cleaner__row.is-openable .tab-cleaner__row-info:focus-visible,
@@ -598,15 +598,10 @@
   opacity: 1;
 }
 
-.tab-cleaner button:not(:disabled),
+.tab-cleaner button,
 .tab-cleaner summary,
-.tab-cleaner input[type="checkbox"]:not(:disabled) {
-  cursor: pointer;
-}
-
-.tab-cleaner button:disabled,
-.tab-cleaner input[type="checkbox"]:disabled {
-  cursor: not-allowed;
+.tab-cleaner input[type="checkbox"] {
+  cursor: var(--cursor, default);
 }
 
 .tab-cleaner__batch {

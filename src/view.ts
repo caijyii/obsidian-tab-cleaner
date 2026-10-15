@@ -372,19 +372,20 @@ export class TabCleanerView extends ItemView {
     if (!requestFrame) return;
     requestFrame.call(filters.ownerDocument.defaultView, () => {
       if (!filters.isConnected) return;
-      const gap = Number.parseFloat(getComputedStyle(filters).columnGap) || 0;
-      const allWidth = allButton.offsetWidth;
-      const optionalWidths = optionalEntries.map(({ button }) => button.offsetWidth);
-      const moreWidth = more.offsetWidth;
-
-      const totalWidth = (widths: number[]): number =>
-        widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, widths.length - 1);
-
       const layout = (): void => {
+        if (!filters.isConnected || filters.clientWidth <= 0) return;
         for (const { button } of optionalEntries) {
           button.removeClass("is-layout-hidden", "is-layout-shrink");
         }
         more.toggleClass("is-layout-hidden", optionalEntries.length === 0);
+
+        // Hidden tabs report zero widths; measure afresh after making controls measurable.
+        const gap = Number.parseFloat(getComputedStyle(filters).columnGap) || 0;
+        const allWidth = allButton.offsetWidth;
+        const optionalWidths = optionalEntries.map(({ button }) => button.offsetWidth);
+        const moreWidth = more.offsetWidth;
+        const totalWidth = (widths: number[]): number =>
+          widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, widths.length - 1);
 
         const fixedWidths = [allWidth];
         if (totalWidth([...fixedWidths, ...optionalWidths]) <= filters.clientWidth) {
