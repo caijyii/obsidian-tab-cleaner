@@ -2,121 +2,46 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Tab Cleaner 是一款 Obsidian 可视化标签页清理插件，帮助你查看标签页，并在确认后安全地批量关闭。
+在一张列表里找出工作区中空白或重复的标签页，确认后批量关闭。
 
 ![Tab Cleaner 操作演示](assets/tab-cleaner-demo.gif)
 
 ## 功能
 
-- 可视化展示主工作区中的标签页
-- 内置“空白”和“重复”检索组，可取消置顶
-- 按路径、文件名、扩展名或视图类型搜索
-- 将搜索条件保存为可置顶、可编辑、可删除的检索组
-- 可在清理面板中快捷开关固定标签页和当前标签页保护
-- 默认保护当前活动标签页
-- 按批次保存最近关闭记录，并支持一键重新打开
-- 根据 Obsidian 应用语言自动显示简体中文或英文
-- 安全关闭边界：只允许选择空白标签页和以文件为基础的标签页
+- 按路径、文件名、扩展名或视图类型筛选标签页。常用搜索可保存为检索组并置顶。
+- 默认保护当前标签页和固定标签页，两项保护都可以在面板中调整。
+- 在**最近关闭**中一键重新打开同一批关闭的标签页。
 
-空白标签页会合并写入“最近关闭”，并可重新打开为一个新的空白标签页。左右侧栏工具和 Tab Cleaner 自己的面板不会进入清理范围。
+[![Tab Cleaner 各版本累计下载趋势，图中标有最新累计次数及日期](assets/download-history.png)](https://community.obsidian.md/plugins/tab-cleaner)
 
-## 使用要求
-
-- Obsidian 1.8.7 或更高版本
-- 面向桌面端和移动端设计；目前仅在 macOS 上经过实测
-
-建议备份重要内容，并在将任何标签页管理插件用于重要 Vault 前验证你常用的工作流程。
+下载量来自 [Obsidian 官方统计](https://github.com/obsidianmd/obsidian-releases/blob/master/community-plugin-stats.json)，历史记录由社区开发者 [yulei-chen 整理](https://yulei-chen.github.io/obsidian-plugin-download-stats/#tab-cleaner)。
 
 ## 安装
 
-### 通过第三方插件目录安装
+在 Obsidian 的**设置 → 第三方插件 → 浏览**中搜索 **Tab Cleaner**，安装后启用。
 
-Tab Cleaner 已进入 Obsidian 第三方插件目录：
+需要 Obsidian 1.8.7 或更高版本。面向桌面端和移动端设计，目前已在 macOS 上实测。界面随 Obsidian 语言显示简体中文或英文。
 
-1. 在 Obsidian 中打开“设置 → 第三方插件”。
-2. 点击“浏览”并搜索 **Tab Cleaner**。
-3. 点击“安装”，然后启用插件。
+<details>
+<summary>通过 BRAT 或手动安装</summary>
 
-### 通过 BRAT 安装
+- **BRAT** — 在 BRAT 设置中选择 **Add Beta plugin**，输入 `https://github.com/caijyii/obsidian-tab-cleaner`。[获取 BRAT](https://github.com/TfTHacker/obsidian42-brat)
+- **手动安装** — 从同一个 Release 下载 `main.js`、`manifest.json` 和 `styles.css`，放入笔记仓库的 `.obsidian/plugins/tab-cleaner/` 目录。重新加载 Obsidian 后启用插件。[GitHub Releases](https://github.com/caijyii/obsidian-tab-cleaner/releases)
 
-如需直接测试 GitHub Release，可以通过 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 安装：
+从 1.1.4 版起，发布文件附有 GitHub 构建证明。运行 `gh attestation verify main.js --repo caijyii/obsidian-tab-cleaner` 即可验证，检查其他文件时替换文件名。
 
-1. 安装并启用 BRAT。
-2. 在 BRAT 设置中选择 **Add Beta plugin**。
-3. 输入 `https://github.com/caijyii/obsidian-tab-cleaner`。
-
-### 手动安装
-
-从对应的 [GitHub Release](https://github.com/caijyii/obsidian-tab-cleaner/releases) 下载 `main.js`、`manifest.json` 和 `styles.css`，然后复制到：
-
-```text
-你的 Obsidian 仓库目录/.obsidian/plugins/tab-cleaner/
-```
-
-请将“你的 Obsidian 仓库目录”替换为实际存放 Obsidian 笔记的文件夹。
-
-重启 Obsidian 或重新加载插件，然后前往“设置 → 第三方插件”启用 **Tab Cleaner**。
+</details>
 
 ## 使用方法
 
-点击 Obsidian 左侧功能区中的清理刷图标，或者在命令面板中运行 **Tab Cleaner: 打开面板**。
+1. 点击左侧功能区的清理刷图标，或在命令面板中运行 **Tab Cleaner: 打开面板**。
+2. 选择**空白**、**重复**或已保存的检索组，也可以直接搜索。点击标签页名称可在工作区中查看对应页面。
+3. 勾选要关闭的标签页，点击**关闭所选**。可关闭范围限于主工作区的空白标签页和文件标签页。
 
-1. 选择“全部”“空白”“重复”、自定义检索组，或者直接输入搜索内容。
-2. 通过列表右上方的保护开关，决定是否允许选择固定标签页和当前标签页，然后选择当前可见项或逐项勾选。
-3. 点击 **关闭所选**。
-4. 如果需要找回标签页，可在 **最近关闭** 中重新打开。
+在**最近关闭**中，`×3` 表示同一批关闭了三个相同的标签页，恢复这条记录会打开一个标签页。恢复文件时，文件需要仍在原路径。
 
-“最近关闭”会把同一批次中相同的文件、网址或空白标签页合并为 `×N` 记录；数量表示当时关闭的标签页数量，重新打开时每条记录只恢复一个标签页。
+## 隐私
 
-要创建可重复使用的检索组，可以搜索稳定的路径、文件名、扩展名或视图类型，再点击保存图标。已保存的检索组可从下方列表标题旁的管理图标或插件设置页中编辑、删除。
+设置和清理记录只保存在本地笔记仓库。Tab Cleaner 不读取或修改笔记内容，也不会向外部服务发送数据。
 
-“空白”和“重复”是内置检索组，默认置顶。可在插件设置中通过置顶开关调整内置或自定义检索组的置顶状态。开启后仅显示可执行的上移、下移按钮，用于调整置顶组的顺序；首项不显示上移，末项不显示下移，只有一个置顶组时不显示排序按钮。未置顶组按最近使用排列，包括内置检索组。宽度足够时所有组都会显示；空间不足时优先显示当前组和置顶组，其余检索组可通过“更多检索组”访问。
-
-主页面中，置顶组使用淡主题色，“全部”与非置顶组使用淡中性色，与是否内置无关。常态底色较浅；中性控件的悬浮和选中统一使用 Obsidian 原生悬浮色，随主题变化，包括“全部”、非置顶组和“全选”。置顶组的悬浮和选中仍共用淡主题色。选中的检索组使用主题色文字、下划线和稍粗字形，并保留本类色调，仍可辨认置顶状态。置顶组可横向拖动调整顺序，拖动不会切换当前检索组。管理弹窗也提供上移、下移按钮，可调整被收起的置顶组。已有检索组的置顶和排序即时保存；自定义组名称编辑后会在名称行显示确认图标，点击后保存名称。关闭弹窗只会丢弃尚未确认的名称。新增检索组仍需点击“保存”创建。
-
-当前检索组的管理图标位于下方列表标题旁，隐藏时不占位，悬浮标题或键盘聚焦时显示，触屏上始终显示。显示时标题左端和右侧操作按钮位置不变，窄标题可能暂时缩略；顶部检索组不会移动。
-
-受保护的标签页仅禁用复选框；仍可点击名称或内容区域定位到该标签页。固定图标和当前标签页标记使用主题强调色，当前标记显示在固定图标右侧，并独立于当前标签页保护开关。
-
-两种标签页保护快捷按钮常态无底色，悬浮或键盘聚焦时显示浅中性色底色：开启时显示主题色、无划线图标，关闭时显示灰色、带划线图标。桌面上平时隐藏且不占位，悬浮“全选”后在它左侧同一行显示，“全选”和“关闭”位置不变；窄侧栏的标题可能在图标显示期间缩略。移到图标上仍保持显示，离开这组控件后隐藏。键盘聚焦时显示，切换后保留焦点；触屏上则在按钮旁常显。标签页仅悬浮时显示底色，选择状态由复选框的主题色勾选和边框提示。
-
-## 安全与隐私
-
-- Tab Cleaner 不会向外部发送数据。
-- 插件不会读取或修改笔记内容。
-- 设置和最近清理记录只保存在 Obsidian 本地的插件数据文件中。
-- 无法安全恢复的非文件视图不会被允许关闭。
-- 空白标签页会合并为一条历史记录，重新打开时恢复为一个新的空白标签页。
-
-## 已知限制
-
-- 如果 `×N` 表示多个相同标签页被关闭，重新打开时每条历史记录仍只恢复一个标签页。
-- 文件被删除或移动后，对应的最近关闭记录无法重新打开。
-
-## 构建证明与发布
-
-Obsidian 1.13.0 及以上版本可通过设置搜索查找本插件的配置项。旧版仍通过原有渲染入口使用同一套配置，最低兼容版本保持 1.8.7。
-
-后续发布时，推送与 `package.json`、`manifest.json`、`versions.json` 一致的版本标签。**Build release assets** 工作流会测试并构建该标签对应的提交，为 `main.js`、`manifest.json`、`styles.css` 生成 GitHub 构建证明，并把这三个文件上传为 `tab-cleaner-版本号` 产物；不会自动发布 Release。
-
-工作流通过后，下载该次运行的产物，将这三个原文件分别附到 GitHub Release。不要重新在本地构建后上传，以免文件与证明不一致。1.1.3 及更早版本由本地构建，不包含这类 CI 构建证明。
-
-用户可以用 GitHub CLI 验证下载的文件：
-
-```sh
-gh attestation verify main.js --repo caijyii/obsidian-tab-cleaner
-gh attestation verify styles.css --repo caijyii/obsidian-tab-cleaner
-gh attestation verify manifest.json --repo caijyii/obsidian-tab-cleaner
-```
-
-## 反馈
-
-请通过 [GitHub Issues](https://github.com/caijyii/obsidian-tab-cleaner/issues) 报告问题或提出功能建议。
-
-## 致谢
-
-产品概念受到 [Tab Out](https://github.com/zarazhangrui/tab-out) 启发。
-
-## 许可证
-
-[MIT](LICENSE) © 2026 caijyii
+[问题与建议](https://github.com/caijyii/obsidian-tab-cleaner/issues) · 灵感来自 [Tab Out](https://github.com/zarazhangrui/tab-out) · [MIT](LICENSE) © 2026 caijyii

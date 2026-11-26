@@ -1,0 +1,39 @@
+name: Refresh download chart
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-download-chart
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Render the download history
+        run: |
+          curl --fail --silent --show-error --location --retry 3 --max-time 60 \
+            https://yulei-chen.github.io/obsidian-plugin-download-stats/data/plugins/tab-cleaner.json \
+            --output "$RUNNER_TEMP/tab-cleaner.json"
+          swift scripts/draw-download-history.swift "$RUNNER_TEMP/tab-cleaner.json" assets/download-history.png
+
+      - name: Save a changed chart
+        run: |
+          if git diff --quiet -- assets/download-history.png; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- assets/download-history.png
+          git commit -m 'Refresh Tab Cleaner download chart'
+          git push
