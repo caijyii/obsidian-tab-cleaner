@@ -12,10 +12,6 @@ Find empty or duplicate tabs in your workspace, review them in one list, and clo
 - Active and pinned tabs are protected by default. You can adjust both protections in the panel.
 - Reopen a cleanup batch from **Recently closed**.
 
-[![Cumulative Tab Cleaner downloads across releases, with the latest total and date](assets/download-history.png)](https://community.obsidian.md/plugins/tab-cleaner)
-
-The [community archive maintained by yulei-chen](https://yulei-chen.github.io/obsidian-plugin-download-stats/#tab-cleaner) reconstructs this history from [Obsidian’s plugin download counts](https://github.com/obsidianmd/obsidian-releases/blob/master/community-plugin-stats.json).
-
 ## Install
 
 In Obsidian, open **Settings → Community plugins → Browse**, search for **Tab Cleaner**, then install and enable it.
@@ -43,5 +39,11 @@ In **Recently closed**, a count such as `×3` means three matching tabs were clo
 ## Privacy
 
 Settings and cleanup history stay in your vault. Tab Cleaner never reads or changes note contents or sends data to an external service.
+
+<br>
+
+[![Cumulative Tab Cleaner downloads across releases, with the latest total and date](assets/download-history.png)](https://community.obsidian.md/plugins/tab-cleaner)
+
+<br>
 
 [Report an issue](https://github.com/caijyii/obsidian-tab-cleaner/issues) · Inspired by [Tab Out](https://github.com/zarazhangrui/tab-out) · [MIT](LICENSE) © 2026 caijyii

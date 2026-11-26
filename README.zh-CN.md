@@ -12,10 +12,6 @@
 - 默认保护当前标签页和固定标签页，两项保护都可以在面板中调整。
 - 在**最近关闭**中一键重新打开同一批关闭的标签页。
 
-[![Tab Cleaner 各版本累计下载趋势，图中标有最新累计次数及日期](assets/download-history.png)](https://community.obsidian.md/plugins/tab-cleaner)
-
-下载量来自 [Obsidian 官方统计](https://github.com/obsidianmd/obsidian-releases/blob/master/community-plugin-stats.json)，历史记录由社区开发者 [yulei-chen 整理](https://yulei-chen.github.io/obsidian-plugin-download-stats/#tab-cleaner)。
-
 ## 安装
 
 在 Obsidian 的**设置 → 第三方插件 → 浏览**中搜索 **Tab Cleaner**，安装后启用。
@@ -43,5 +39,11 @@
 ## 隐私
 
 设置和清理记录只保存在本地笔记仓库。Tab Cleaner 不读取或修改笔记内容，也不会向外部服务发送数据。
+
+<br>
+
+[![Tab Cleaner 各版本累计下载趋势，图中标有最新累计次数及日期](assets/download-history.png)](https://community.obsidian.md/plugins/tab-cleaner)
+
+<br>
 
 [问题与建议](https://github.com/caijyii/obsidian-tab-cleaner/issues) · 灵感来自 [Tab Out](https://github.com/zarazhangrui/tab-out) · [MIT](LICENSE) © 2026 caijyii
