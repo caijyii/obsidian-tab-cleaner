@@ -2,15 +2,21 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Find empty or duplicate tabs in your workspace, review them in one list, and close the ones you select.
+Visually find, review, and safely close groups of Obsidian tabs.
 
 ![Tab Cleaner workflow demo](assets/tab-cleaner-demo-en.gif)
 
 ## Features
 
-- Filter tabs by path, file name, extension, or view type. Save frequent searches as groups and pin them for quick access.
-- Active and pinned tabs are protected by default. You can adjust both protections in the panel.
-- Reopen a cleanup batch from **Recently closed**.
+- Visual list of tabs in the main workspace
+- Built-in Empty and Duplicates search groups that can be unpinned
+- Search by path, file name, extension, or view type
+- Reusable search groups that can be pinned, edited, or removed
+- Quick toggles for pinned-tab and active-tab protection in the cleaner panel
+- Active-tab protection by default
+- Recently closed cleanup batches with one-click reopening
+- Simplified Chinese and English interfaces based on the Obsidian language
+- Safe closing boundary: only empty tabs and file-backed tabs can be selected
 
 ## Install
 
@@ -34,7 +40,7 @@ Release files from 1.1.4 onward have GitHub build attestations. To verify a file
 2. Choose **Empty**, **Duplicates**, or a saved group, or type a search. Click a tab’s name to inspect it in the workspace.
 3. Check the tabs you want to close and choose **Close selected**. Only empty tabs and tabs backed by files in the main workspace can be closed.
 
-In **Recently closed**, a count such as `×3` means three matching tabs were closed together. Reopening that entry restores one tab. Restoring a file requires it to still be at its original path.
+**Recently closed** groups matching tabs from the same batch into one entry. For example, closing three empty tabs produces an entry marked `×3`. Reopening it opens one new empty tab. To reopen a file, it must still be at its original path.
 
 ## Privacy
 
